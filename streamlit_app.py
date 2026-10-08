@@ -2,7 +2,9 @@ import os
 import subprocess
 import tempfile
 import urllib.request
+import wave
 
+import numpy as np
 import streamlit as st
 from faster_whisper import WhisperModel
 from indic_transliteration import sanscript
@@ -178,7 +180,13 @@ if uploaded and st.button("✨ Captions Generate Karo", type="primary"):
             kwargs = dict(language=WHISPER_LANG[lang], beam_size=5, vad_filter=True)
             if lang == "hinglish":
                 kwargs["initial_prompt"] = "Yeh ek kahani ka Hinglish transcript hai."
-            segments, info = model.transcribe(wav_path, **kwargs)
+            # Load the wav into a numpy array ourselves and pass the array:
+            # this bypasses faster-whisper's PyAV-based decoder (av.open),
+            # which crashes with some av/faster-whisper version combos.
+            with wave.open(wav_path, "rb") as wf:
+                raw = wf.readframes(wf.getnframes())
+                audio = np.frombuffer(raw, dtype=np.int16).astype(np.float32) / 32768.0
+            segments, info = model.transcribe(audio, **kwargs)
             segs = []
             for s in segments:
                 txt = s.text.strip()
