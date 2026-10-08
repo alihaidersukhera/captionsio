@@ -138,6 +138,35 @@ footer{border-top:1px solid var(--border);padding:44px 0;color:var(--muted);font
 /* reveal */
 .rv{opacity:0;transform:translateY(26px);transition:opacity .7s ease,transform .7s ease}
 .rv.on{opacity:1;transform:none}
+/* templates carousel */
+.tpl-badge{text-align:center;margin-bottom:22px;font-weight:700;font-size:16px}
+.tpl-badge b{color:var(--acc)}
+.tpl-tag{display:inline-block;font-size:11px;font-weight:700;letter-spacing:1px;border:1px solid rgba(255,176,32,.4);color:var(--acc);border-radius:999px;padding:4px 12px;margin-left:10px;background:rgba(255,176,32,.06);vertical-align:middle}
+.tpl-carousel-wrap{position:relative;max-width:1140px;margin:0 auto;padding:0 56px}
+.tpl-track{display:flex;gap:18px;overflow-x:auto;scroll-snap-type:x mandatory;padding:10px 4px 22px;scrollbar-width:none}
+.tpl-track::-webkit-scrollbar{display:none}
+.tpl-card{flex:0 0 218px;scroll-snap-align:center}
+.tpl-screen{aspect-ratio:9/16;border-radius:16px;position:relative;overflow:hidden;border:1px solid var(--border);background:linear-gradient(165deg,#1e1c29,#12141f 55%,#1a1410)}
+.tpl-screen::before{content:"";position:absolute;width:170px;height:170px;border-radius:50%;background:radial-gradient(circle,rgba(255,176,32,.22),transparent 70%);top:16%;left:12%}
+.tpl-card.active .tpl-screen{border-color:var(--acc);box-shadow:0 0 0 1px var(--acc),0 14px 40px rgba(0,0,0,.45)}
+.tpl-cap{position:absolute;left:12px;right:12px;text-align:center;line-height:1.5}
+.tpl-meta{text-align:center;margin-top:12px}
+.tpl-meta b{font-size:15px}
+.tpl-arrow{position:absolute;top:36%;width:44px;height:44px;border-radius:50%;background:var(--card);border:1px solid var(--border);color:var(--text);font-size:22px;cursor:pointer;z-index:2;transition:border-color .2s,color .2s}
+.tpl-arrow:hover{border-color:var(--acc);color:var(--acc)}
+#tplPrev{left:2px}#tplNext{right:2px}
+.ts-abdal .tpl-cap{top:auto;bottom:22px}
+.ts-abdal .tpl-cap span{background:#fff;color:#111;border-radius:999px;padding:9px 14px;font-size:13.5px;font-weight:600;display:inline-block}
+.ts-hormozi .tpl-cap{top:42%;text-align:left;font-weight:800;font-size:21px;color:#fff;text-transform:uppercase;text-shadow:0 0 8px #39ff39,0 0 22px rgba(57,255,57,.7),2px 2px 0 #062806}
+.ts-gadzhi .tpl-cap{top:44%;font-weight:800;font-size:20px;color:#fff;text-transform:uppercase;text-shadow:2px 2px 0 #000,-2px 2px 0 #000,2px -2px 0 #000,-2px -2px 0 #000}
+.ts-bubble .tpl-cap{top:44%}
+.ts-bubble .tpl-cap span{font-family:Georgia,serif;font-size:17px;color:#fff;background:rgba(0,0,0,.9);padding:8px 14px;border-radius:8px;display:inline-block}
+.ts-shamani .tpl-cap{top:44%;font-weight:800;font-size:20px;text-transform:uppercase;color:#00ff00;text-shadow:2px 2px 0 #000,-1px -1px 0 #000}
+.ts-mayya .tpl-cap{top:44%}
+.ts-mayya .tpl-cap span{font-weight:700;font-size:18px;color:#fff;background:#2563eb;padding:7px 14px;border-radius:8px;display:inline-block;text-transform:lowercase}
+.ts-jatho .tpl-cap{top:44%;font-weight:800;font-size:20px;text-transform:uppercase;color:#fff;text-shadow:0 0 10px #2563eb,0 0 26px rgba(37,99,235,.85)}
+.ts-beast .tpl-cap{top:43%;font-weight:800;font-size:23px;text-transform:uppercase;color:#fff;-webkit-text-stroke:1px #ffd700;text-shadow:0 0 12px rgba(255,215,0,.65),3px 3px 0 #000}
+.hl{background:linear-gradient(135deg,var(--acc),var(--acc2));-webkit-background-clip:text;background-clip:text;color:transparent}
 /* responsive */
 @media(max-width:900px){
   .grid4{grid-template-columns:repeat(2,1fr)}
@@ -201,15 +230,26 @@ footer{border-top:1px solid var(--border);padding:44px 0;color:var(--muted);font
 <section id="styles">
   <div class="wrap">
     <div class="sec-head rv">
-      <h2>Caption styles you'll love</h2>
-      <p>Trendy, readable styles tuned for desi content — pick a position, pick a size, done.</p>
+      <h2>Templates your feed <span class="hl">loves</span></h2>
+      <p>8 fully customizable caption styles in every desi flavour — free forever, one click away.</p>
     </div>
-    <div class="grid4">
-      <div class="scard rv"><div class="preview"><div class="cap pop">YEH MOMENT<br>LEGENDARY THA 🔥</div></div><div class="scard-body"><h3>Hinglish Pop</h3><p>Bold yellow pop style — the Reels favourite.</p></div></div>
-      <div class="scard rv"><div class="preview"><div class="cap min">aur phir jo hua, kisi ne socha nahi tha…</div></div><div class="scard-body"><h3>Clean Minimal</h3><p>Subtle white captions for vlogs &amp; podcasts.</p></div></div>
-      <div class="scard rv"><div class="preview"><div class="cap bold">BREAKING NEWS</div></div><div class="scard-body"><h3>Bold Statement</h3><p>High-impact blocks for hooks &amp; highlights.</p></div></div>
-      <div class="scard rv"><div class="preview"><div class="cap topc">top par bhi lagao 👆</div><div class="cap min" style="position:absolute;bottom:14px;left:0;right:0">ya neeche 👇</div></div><div class="scard-body"><h3>Top / Bottom</h3><p>Place captions wherever your content needs.</p></div></div>
+    <div class="tpl-badge rv"><b id="tplName">Ali Abdal</b><span class="tpl-tag">FULLY CUSTOMIZABLE</span></div>
+  </div>
+  <div class="tpl-carousel-wrap rv">
+    <button class="tpl-arrow" id="tplPrev" aria-label="Previous">‹</button>
+    <div class="tpl-track" id="tplTrack">
+      <div class="tpl-card" data-name="Ali Abdal"><div class="tpl-screen ts-abdal"><div class="tpl-cap"><span>toh dosto kahani yahan se shuru hoti hai</span></div></div><div class="tpl-meta"><b>Ali Abdal</b></div></div>
+      <div class="tpl-card" data-name="Alex Hormozi"><div class="tpl-screen ts-hormozi"><div class="tpl-cap">stop scrolling. read this.</div></div><div class="tpl-meta"><b>Alex Hormozi</b></div></div>
+      <div class="tpl-card" data-name="Iman Gadzhi"><div class="tpl-screen ts-gadzhi"><div class="tpl-cap">success is a decision</div></div><div class="tpl-meta"><b>Iman Gadzhi</b></div></div>
+      <div class="tpl-card" data-name="Bubble"><div class="tpl-screen ts-bubble"><div class="tpl-cap"><span>aur phir jo hua, kisi ne socha nahi tha</span></div></div><div class="tpl-meta"><b>Bubble</b></div></div>
+      <div class="tpl-card" data-name="Raj Shamani"><div class="tpl-screen ts-shamani"><div class="tpl-cap">mindset hi sab kuch hai</div></div><div class="tpl-meta"><b>Raj Shamani</b></div></div>
+      <div class="tpl-card" data-name="Varun Mayya"><div class="tpl-screen ts-mayya"><div class="tpl-cap"><span>yeh trick koi nahi batayega</span></div></div><div class="tpl-meta"><b>Varun Mayya</b></div></div>
+      <div class="tpl-card" data-name="Devin Jatho"><div class="tpl-screen ts-jatho"><div class="tpl-cap">editing is everything</div></div><div class="tpl-meta"><b>Devin Jatho</b></div></div>
+      <div class="tpl-card" data-name="Mr Beast"><div class="tpl-screen ts-beast"><div class="tpl-cap">last to leave wins $500,000</div></div><div class="tpl-meta"><b>Mr Beast</b></div></div>
     </div>
+    <button class="tpl-arrow" id="tplNext" aria-label="Next">›</button>
+  </div>
+  <div class="wrap">
     <div class="pills rv">
       <span class="pill">Top / Bottom position</span>
       <span class="pill">Normal / Large size</span>
@@ -396,6 +436,25 @@ const lines=[
 let li=0;const kEl=document.getElementById('karaoke');
 setInterval(()=>{li=(li+1)%lines.length;kEl.style.opacity=0;setTimeout(()=>{kEl.innerHTML=lines[li];kEl.style.opacity=1},250)},3500);
 kEl.style.transition='opacity .25s';
+// templates carousel
+const track=document.getElementById('tplTrack');
+if(track){
+  const prev=document.getElementById('tplPrev'),next=document.getElementById('tplNext');
+  const badge=document.getElementById('tplName');
+  const cards=[...track.querySelectorAll('.tpl-card')];
+  prev.addEventListener('click',()=>track.scrollBy({left:-248,behavior:'smooth'}));
+  next.addEventListener('click',()=>track.scrollBy({left:248,behavior:'smooth'}));
+  function updTpl(){
+    const mid=track.scrollLeft+track.clientWidth/2;
+    let best=cards[0],bd=1e12;
+    cards.forEach(c=>{const d=Math.abs(c.offsetLeft+c.offsetWidth/2-mid);if(d<bd){bd=d;best=c}});
+    cards.forEach(c=>c.classList.toggle('active',c===best));
+    if(badge&&best)badge.textContent=best.dataset.name;
+  }
+  track.addEventListener('scroll',()=>requestAnimationFrame(updTpl),{passive:true});
+  addEventListener('resize',updTpl);
+  updTpl();
+}
 </script>
 </body>
 </html>
