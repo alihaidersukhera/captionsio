@@ -1,4 +1,4 @@
 streamlit>=1.32
-faster-whisper==1.2.1
-av==12.3.0
+faster-whisper
+av
 indic-transliteration>=2.3
