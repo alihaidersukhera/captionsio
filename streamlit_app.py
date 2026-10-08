@@ -39,6 +39,45 @@ FONT_FILES = {
     "https://github.com/google/fonts/raw/main/ofl/notosans/NotoSans%5Bwdth%2Cwght%5D.ttf": "NotoSans.ttf",
     "https://github.com/google/fonts/raw/main/ofl/notosansdevanagari/NotoSansDevanagari%5Bwdth%2Cwght%5D.ttf": "NotoSansDevanagari.ttf",
     "https://github.com/google/fonts/raw/main/ofl/notonaskharabic/NotoNaskhArabic%5Bwght%5D.ttf": "NotoNaskhArabic.ttf",
+    "https://github.com/google/fonts/raw/main/ofl/notoserif/NotoSerif%5Bwdth%2Cwght%5D.ttf": "NotoSerif.ttf",
+}
+
+# Caption style presets (libass force_style). Colours are &HAABBGGRR.
+# transform: 'upper'/'lower'/None applied to caption text for the style.
+STYLES = {
+    "Default": None,
+    "Ali Abdal": {"transform": None, "style": (
+        "FontName=Noto Sans,FontSize=22,PrimaryColour=&H00000000,"
+        "BackColour=&H00FFFFFF,BorderStyle=3,Outline=1,Shadow=0,"
+        "Alignment=2,MarginV=45,Bold=1")},
+    "Alex Hormozi": {"transform": "upper", "style": (
+        "FontName=Noto Sans,FontSize=28,PrimaryColour=&H00FFFFFF,"
+        "OutlineColour=&H0039FF39,BorderStyle=1,Outline=3,Shadow=0,"
+        "Alignment=4,MarginV=30,Bold=1")},
+    "Iman Gadzhi": {"transform": "upper", "style": (
+        "FontName=Noto Sans,FontSize=28,PrimaryColour=&H00FFFFFF,"
+        "OutlineColour=&HFF000000,BorderStyle=1,Outline=2,Shadow=1,"
+        "Alignment=5,Bold=1")},
+    "Bubble": {"transform": None, "style": (
+        "FontName=Noto Serif,FontSize=24,PrimaryColour=&H00FFFFFF,"
+        "BackColour=&H00000000,BorderStyle=3,Outline=1,Shadow=0,"
+        "Alignment=5,Bold=0")},
+    "Raj Shamani": {"transform": "upper", "style": (
+        "FontName=Noto Sans,FontSize=28,PrimaryColour=&H0000FF00,"
+        "OutlineColour=&HFF000000,BorderStyle=1,Outline=2,Shadow=0,"
+        "Alignment=5,Bold=1")},
+    "Varun Mayya": {"transform": "lower", "style": (
+        "FontName=Noto Sans,FontSize=26,PrimaryColour=&H00FFFFFF,"
+        "BackColour=&H00EB6325,BorderStyle=3,Outline=1,Shadow=0,"
+        "Alignment=5,Bold=1")},
+    "Devin Jatho": {"transform": "upper", "style": (
+        "FontName=Noto Sans,FontSize=28,PrimaryColour=&H00FFFFFF,"
+        "OutlineColour=&H00EB6325,BorderStyle=1,Outline=3,Shadow=0,"
+        "Alignment=5,Bold=1")},
+    "Mr Beast": {"transform": "upper", "style": (
+        "FontName=Noto Sans,FontSize=30,PrimaryColour=&H00FFFFFF,"
+        "OutlineColour=&H0000D7FF,BorderStyle=1,Outline=3,Shadow=1,"
+        "Alignment=5,Bold=1")},
 }
 
 
@@ -117,17 +156,22 @@ def segments_to_srt(segments):
     return "\n".join(out)
 
 
-def burn_captions(video_path, srt_path, out_path, position="bottom", size="normal"):
-    align = "8" if position == "top" else "2"  # libass alignment: 8=top-center, 2=bottom-center
-    fsize = "26" if size == "large" else "20"
+def burn_captions(video_path, srt_path, out_path, position="bottom", size="normal",
+                 style_name="Default"):
+    preset = STYLES.get(style_name)
+    if preset:
+        style = preset["style"]
+    else:
+        align = "8" if position == "top" else "2"  # libass: 8=top-center, 2=bottom-center
+        fsize = "26" if size == "large" else "20"
+        style = (
+            f"FontName=Noto Sans,FontSize={fsize},"
+            "PrimaryColour=&H00FFFFFF,OutlineColour=&H90000000,"
+            "BorderStyle=1,Outline=2,Shadow=0,"
+            f"Alignment={align},MarginV=45,Bold=1"
+        )
     # escape for libass subtitles filter
     srt_esc = srt_path.replace("\\", "/").replace(":", "\\:").replace("'", "\\'")
-    style = (
-        f"FontName=Noto Sans,FontSize={fsize},"
-        "PrimaryColour=&H00FFFFFF,OutlineColour=&H90000000,"
-        "BorderStyle=1,Outline=2,Shadow=0,"
-        f"Alignment={align},MarginV=45,Bold=1"
-    )
     vf = f"subtitles='{srt_esc}':force_style='{style}'"
     cmd = ["ffmpeg", "-y", "-i", video_path, "-vf", vf, "-c:a", "copy", out_path]
     r = subprocess.run(cmd, capture_output=True, text=True, timeout=1200)
@@ -148,9 +192,16 @@ with col2:
     model_choice = st.selectbox("🧠 Model", ["base (fast)", "small (best)"], index=0)
 col3, col4 = st.columns(2)
 with col3:
-    position = st.selectbox("📍 Position", ["bottom", "top"], index=0)
+    style_name = st.selectbox("🎨 Caption style", list(STYLES.keys()), index=0)
 with col4:
-    size = st.selectbox("🔠 Size", ["normal", "large"], index=0)
+    size = st.selectbox("🔠 Size", ["normal", "large"], index=0,
+                        disabled=(style_name != "Default"))
+
+if style_name == "Default":
+    position = st.selectbox("📍 Position", ["bottom", "top"], index=0)
+else:
+    position = "bottom"  # style apna position khud set karta hai
+    st.caption("💡 Style apna position khud set karta hai — neeche preview me dekho.")
 
 if LANGS[lang_label] == "hinglish":
     st.info("💡 Hinglish ke liye **small** model auto-use hoga (Urdu/Hindi dono ko Roman me laata hai, thoda slow).")
@@ -194,6 +245,12 @@ if uploaded and st.button("✨ Captions Generate Karo", type="primary"):
                     continue
                 if lang == "hinglish":
                     txt = to_hinglish(txt)
+                # style ke hisaab se case transform (Hormozi/Gadzhi = UPPER, Mayya = lower)
+                _tr = (STYLES.get(style_name) or {}).get("transform")
+                if _tr == "upper":
+                    txt = txt.upper()
+                elif _tr == "lower":
+                    txt = txt.lower()
                 segs.append((s.start, s.end, txt))
 
         if not segs:
@@ -219,7 +276,8 @@ if uploaded and st.button("✨ Captions Generate Karo", type="primary"):
                         f.write(srt_text)
                     out_path = os.path.join(tmp, "captioned.mp4")
                     try:
-                        burn_captions(video_path, srt_path, out_path, position, size)
+                        burn_captions(video_path, srt_path, out_path, position, size,
+                                      style_name=style_name)
                         with open(out_path, "rb") as f:
                             video_bytes = f.read()
                         st.video(video_bytes)
