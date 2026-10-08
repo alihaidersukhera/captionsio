@@ -346,9 +346,9 @@ EMOJI_MAP = [
 
 def add_emoji(text):
     """Pehla matching keyword -> caption ke end me emoji. Returns (new_text, emoji_or_None)."""
-    low = text.lower()
+    import re as _re
     for keys, em in EMOJI_MAP:
-        if any(k in low for k in keys):
+        if any(_re.search(r"\b" + _re.escape(k) + r"\b", text.lower()) for k in keys):
             return text + " " + em, em
     return text, None
 
