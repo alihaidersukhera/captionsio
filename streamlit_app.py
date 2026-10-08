@@ -158,12 +158,12 @@ def get_model(name: str):
         raise
 
 
-def translate_en_to_hi(text):
-    """English -> Hindi (Devanagari) via MyMemory free API. Quota/failure par RuntimeError."""
+def translate_en_to_ur(text):
+    """English -> Urdu (Arabic script) via MyMemory free API. Quota/failure par RuntimeError."""
     import urllib.request
     import urllib.parse
     import json
-    q = urllib.parse.urlencode({"q": text, "langpair": "en|hi"})
+    q = urllib.parse.urlencode({"q": text, "langpair": "en|ur"})
     req = urllib.request.Request("https://api.mymemory.translated.net/get?" + q,
                                  headers={"User-Agent": "Mozilla/5.0"})
     try:
@@ -200,6 +200,72 @@ def to_hinglish(text: str) -> str:
     t = t.lower().replace(".", "")
     fix = {"mem": "mein", "men": "mein", "haim": "hain", "hainn": "hain"}
     return " ".join(fix.get(w, w) for w in t.split(" "))
+
+
+# --- Urdu (Arabic script) -> Roman (Urdu-style Hinglish) ---
+URDU_ROMAN_WORDS = {
+    "ہم": "hum", "میں": "mein", "آپ": "aap", "تم": "tum", "تو": "tu",
+    "یہ": "yeh", "وہ": "woh", "جو": "jo", "کون": "kaun", "کیا": "kya",
+    "کہاں": "kahan", "کیسے": "kaise", "کب": "kab", "کیوں": "kyun",
+    "کیونکہ": "kyunke",
+    "ہے": "hai", "ہیں": "hain", "ہو": "ho", "ہوں": "hoon", "ہوگا": "hoga",
+    "ہوگی": "hogi", "ہونگے": "honge", "تھا": "tha", "تھی": "thi",
+    "تھے": "the", "ہوا": "hua", "ہوئی": "hui", "ہوئے": "hue",
+    "نے": "ne", "کو": "ko", "کا": "ka", "کی": "ki", "کے": "ke",
+    "پر": "par", "سے": "se", "تک": "tak", "ساتھ": "saath", "خلاف": "khilaf",
+    "اور": "aur", "لیکن": "lekin", "مگر": "magar", "پھر": "phir",
+    "اب": "ab", "بھی": "bhi", "ہی": "hi", "نہیں": "nahin", "نہ": "na",
+    "بہت": "bohat", "پہلے": "pehle", "بعد": "baad", "یہاں": "yahan",
+    "وہاں": "wahan", "جب": "jab", "اگر": "agar", "صرف": "sirf",
+    "اچھا": "acha", "شکریہ": "shukriya", "السلام": "assalam",
+    "علیکم": "alaikum", "سر": "sir", "جناب": "janab",
+    "کر": "kar", "کرنا": "karna", "کرو": "karo", "کریں": "karein",
+    "چکے": "chuke", "چکی": "chuki", "چکا": "chuka",
+    "کرواؤں": "karwaunga", "تاکہ": "taake",
+    "پورا": "poora", "پوری": "poori", "پورے": "poore",
+    "بیٹھا": "betha", "بیٹھی": "bethi", "بیٹھے": "bethe",
+    "دے": "de", "دیں": "dein", "لے": "le", "لیں": "lein",
+    "آ": "aa", "آؤ": "aao", "آئیں": "aayein", "جا": "ja", "جاؤ": "jao",
+    "دیکھ": "dekh", "دیکھو": "dekho", "دیکھیں": "dekhein",
+    "سن": "sun", "سنو": "suno", "بول": "bol", "بولو": "bolo",
+    "کہ": "keh", "کہا": "kaha", "بتا": "bata", "بتاؤ": "batao",
+    "ویب": "web", "سائٹ": "site", "ڈیمو": "demo", "ایجنسی": "agency",
+    "دفتر": "daftar", "اعتماد": "etemad", "مسئلہ": "masla",
+    "مسائل": "masail", "تعارف": "taaruf", "معلومات": "maloomat",
+    "تفصیلات": "tafseelat", "بھروسہ": "bharosa", "کام": "kaam",
+    "وقت": "waqt", "دن": "din", "آج": "aaj", "کل": "kal",
+}
+
+URDU_LETTERS = {
+    "ا": "a", "آ": "aa", "ب": "b", "پ": "p", "ت": "t", "ٹ": "t",
+    "ث": "s", "ج": "j", "چ": "ch", "ح": "h", "خ": "kh", "د": "d",
+    "ڈ": "d", "ذ": "z", "ر": "r", "ڑ": "r", "ز": "z", "ژ": "zh",
+    "س": "s", "ش": "sh", "ص": "s", "ض": "z", "ط": "t", "ظ": "z",
+    "ع": "a", "غ": "gh", "ف": "f", "ق": "q", "ک": "k", "گ": "g",
+    "ل": "l", "م": "m", "ن": "n", "ں": "n", "و": "o", "ہ": "h",
+    "ھ": "h", "ء": "", "ؤ": "o", "ی": "i", "ے": "e",
+}
+
+
+def urdu_to_roman(text: str) -> str:
+    """Urdu script -> readable Roman (Urdu-style Hinglish). Dictionary first, letters fallback."""
+    import re as _re
+    text = _re.sub(r"[ً-ٲٰ]", "", text)  # diacritics hatao
+    out = []
+    for tok in text.split():
+        m = _re.match(r"^([\u0600-\u06ff]+)([^\u0600-\u06ff]*)$", tok)
+        if not m:
+            out.append(tok)
+            continue
+        word, punct = m.groups()
+        roman = URDU_ROMAN_WORDS.get(word)
+        if roman is None:
+            roman = "".join(URDU_LETTERS.get(ch, ch) for ch in word)
+        out.append(roman + punct)
+    _res = " ".join(out)
+    _res = _re.sub(r"(unga|ega|ongi|egi|onga) ga\b", r"\1", _res)
+    _res = _re.sub(r"(ungi|egi) gi\b", r"\1", _res)
+    return _res
 
 
 def srt_timestamp(s: float) -> str:
@@ -444,7 +510,7 @@ if not st.session_state.segs:
     if LANGS[lang_label] == "hinglish":
         st.info("💡 Hinglish ke liye **small** model auto-use hoga (Urdu/Hindi audio ko Roman me laata hai, thoda slow).")
     if LANGS[lang_label] == "en2hinglish":
-        st.info("💡 English audio ko **translate** karke Roman (Hinglish) captions banayega — jaise 'we have done the demo' → 'hum ne demo bana diya hai'. Free online translation hai (rozana limit ho sakti hai).")
+        st.info("💡 English audio ko **Urdu** me **translate** karke Roman (Hinglish) captions banayega — jaise 'we have done the demo' → 'hum ne demo bana diya hai'. Free online translation hai (rozana limit ho sakti hai).")
     if LANGS[lang_label] in ("hinglish", "hindi", "urdu"):
         st.caption("ℹ️ Ye mode Hindi/Urdu **bolne** wali audio ke liye hai — English audio ke liye **English** select karo (English ko Hinglish me translate nahi karta).")
 
@@ -537,7 +603,7 @@ if not st.session_state.segs:
                 segments = list(segments)
 
                 if lang == "en2hinglish":
-                    # English audio -> Hindi (Devanagari, free API) -> Roman = Hinglish captions
+                    # English audio -> Urdu (Arabic script, free API) -> Roman = Urdu-style Hinglish
                     import time
                     from types import SimpleNamespace
                     _tsegments = []
@@ -547,9 +613,10 @@ if not st.session_state.segs:
                         for _i, _s in enumerate(segments):
                             _raw = _s.text.strip()
                             if _raw:
-                                _hi = translate_en_to_hi(_raw)
+                                _ur = translate_en_to_ur(_raw)
                                 time.sleep(0.3)
-                                _roman = to_hinglish(_hi).replace("।", "").replace("|", "").strip()
+                                _ur = _ur.replace(_raw, "").strip()  # MyMemory kabhi English echo kar deta hai
+                                _roman = urdu_to_roman(_ur).replace("۔", "").strip()
                                 _ws = _roman.split()
                                 if _ws and (_s.end - _s.start) > 0:
                                     _dur = (_s.end - _s.start) / len(_ws)
