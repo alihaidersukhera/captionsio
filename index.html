@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Captionsio — Free Auto-Captions for Desi Creators</title>
+<meta name="description" content="Captionsio auto-generates accurate captions in Hinglish, Hindi, Urdu and English — free forever. Download SRT or burned-in video. No sign-up, no watermark.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0b0b10; --bg2:#101018; --card:#14141d; --border:#262633;
+  --text:#f5f2ea; --muted:#a8a29e;
+  --acc:#ffb020; --acc2:#ff6b35;
+  --radius:18px;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{font-family:'Plus Jakarta Sans',system-ui,sans-serif;background:var(--bg);color:var(--text);line-height:1.6;overflow-x:hidden}
+a{color:inherit;text-decoration:none}
+.wrap{max-width:1140px;margin:0 auto;padding:0 24px}
+/* ---------- NAV ---------- */
+nav{position:fixed;top:0;left:0;right:0;z-index:100;transition:background .3s,box-shadow .3s}
+nav.scrolled{background:rgba(11,11,16,.88);backdrop-filter:blur(12px);box-shadow:0 1px 0 var(--border)}
+.nav-in{display:flex;align-items:center;justify-content:space-between;height:68px}
+.logo{display:flex;align-items:center;gap:10px;font-weight:800;font-size:22px;letter-spacing:-.5px}
+.logo-badge{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,var(--acc),var(--acc2));display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#1a1206}
+.nav-links{display:flex;gap:30px;font-size:15px;font-weight:500;color:var(--muted)}
+.nav-links a:hover{color:var(--text)}
+.btn{display:inline-flex;align-items:center;gap:8px;background:linear-gradient(135deg,var(--acc),var(--acc2));color:#1a1206;font-weight:700;padding:12px 26px;border-radius:999px;border:0;cursor:pointer;font-size:15px;transition:transform .2s,box-shadow .2s}
+.btn:hover{transform:translateY(-2px);box-shadow:0 8px 28px rgba(255,176,32,.35)}
+.btn-ghost{background:transparent;color:var(--text);border:1px solid var(--border)}
+.btn-ghost:hover{box-shadow:none;border-color:var(--acc);color:var(--acc)}
+.burger{display:none;background:none;border:0;color:var(--text);font-size:26px;cursor:pointer}
+/* ---------- HERO ---------- */
+.hero{padding:150px 0 70px;text-align:center;position:relative}
+.hero::before{content:"";position:absolute;inset:0;background:radial-gradient(600px 300px at 50% 0%,rgba(255,176,32,.12),transparent 70%);pointer-events:none}
+.eyebrow{display:inline-block;font-size:12px;font-weight:700;letter-spacing:2px;color:var(--acc);border:1px solid rgba(255,176,32,.4);padding:8px 18px;border-radius:999px;margin-bottom:26px;background:rgba(255,176,32,.06)}
+h1{font-size:clamp(38px,6vw,68px);font-weight:800;letter-spacing:-2px;line-height:1.08;margin-bottom:20px}
+h1 .hl{background:linear-gradient(135deg,var(--acc),var(--acc2));-webkit-background-clip:text;background-clip:text;color:transparent}
+.sub{font-size:clamp(16px,2.2vw,20px);color:var(--muted);max-width:640px;margin:0 auto 36px}
+.cta-row{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-bottom:60px}
+/* hero player mock */
+.player{max-width:760px;margin:0 auto 0;border-radius:20px;overflow:hidden;border:1px solid var(--border);background:linear-gradient(160deg,#1c1a26,#241d16 60%,#1a1410);box-shadow:0 30px 80px rgba(0,0,0,.5);position:relative}
+.player-top{display:flex;gap:6px;padding:12px 16px;border-bottom:1px solid var(--border)}
+.dot{width:10px;height:10px;border-radius:50%;background:#3a3a48}
+.player-screen{aspect-ratio:16/8;display:flex;align-items:center;justify-content:center;position:relative;flex-direction:column;gap:18px;padding:30px}
+.fake-sub{position:absolute;left:0;right:0;bottom:22px;text-align:center;padding:0 20px}
+.fake-sub span{display:inline-block;background:rgba(0,0,0,.55);padding:6px 14px;border-radius:8px;font-weight:700;font-size:clamp(15px,2.4vw,22px)}
+.kw{color:var(--acc)}
+.play-hint{width:64px;height:64px;border-radius:50%;background:rgba(255,176,32,.15);border:1px solid rgba(255,176,32,.5);display:flex;align-items:center;justify-content:center;font-size:22px;color:var(--acc)}
+.bar{height:4px;background:#2a2a36;border-radius:4px;overflow:hidden;position:absolute;bottom:0;left:0;right:0}
+.bar i{display:block;height:100%;width:32%;background:linear-gradient(90deg,var(--acc),var(--acc2));border-radius:4px;animation:prog 6s linear infinite}
+@keyframes prog{from{width:5%}to{width:100%}}
+/* ---------- MARQUEE ---------- */
+.marquee{overflow:hidden;border-top:1px solid var(--border);border-bottom:1px solid var(--border);background:var(--bg2);padding:18px 0;margin:70px 0}
+.mq-track{display:flex;gap:56px;width:max-content;animation:mq 26s linear infinite;font-weight:700;letter-spacing:3px;font-size:14px;color:var(--muted);white-space:nowrap}
+.mq-track b{color:var(--acc)}
+@keyframes mq{to{transform:translateX(-50%)}}
+.strip-title{text-align:center;color:var(--muted);font-size:13px;letter-spacing:3px;font-weight:700;margin-bottom:6px}
+/* ---------- SECTIONS ---------- */
+section{padding:84px 0}
+.sec-head{text-align:center;max-width:680px;margin:0 auto 54px}
+.sec-head h2{font-size:clamp(28px,4vw,44px);font-weight:800;letter-spacing:-1px;margin-bottom:14px}
+.sec-head p{color:var(--muted);font-size:17px}
+/* style cards */
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:20px}
+.scard{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;transition:transform .25s,border-color .25s}
+.scard:hover{transform:translateY(-6px);border-color:rgba(255,176,32,.45)}
+.preview{height:150px;display:flex;align-items:center;justify-content:center;background:#0e0e14;position:relative}
+.preview .cap{font-weight:800;text-align:center;line-height:1.4;padding:0 12px}
+.cap.pop{color:#ffe135;text-shadow:2px 2px 0 #000,-2px 2px 0 #000,2px -2px 0 #000,-2px -2px 0 #000;font-size:21px}
+.cap.min{color:#fff;font-weight:600;font-size:17px}
+.cap.bold{color:#fff;background:#000;padding:8px 14px;font-size:19px;letter-spacing:1px}
+.cap.topc{color:#ffe135;text-shadow:2px 2px 0 #000;font-size:19px;position:absolute;top:14px;left:0;right:0}
+.scard-body{padding:20px}
+.scard-body h3{font-size:17px;margin-bottom:6px}
+.scard-body p{color:var(--muted);font-size:14px}
+.pills{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:34px}
+.pill{font-size:13px;font-weight:600;border:1px solid var(--border);border-radius:999px;padding:8px 18px;color:var(--muted);background:var(--card)}
+/* stat quote */
+.stat{background:linear-gradient(135deg,rgba(255,176,32,.1),rgba(255,107,53,.06));border-top:1px solid var(--border);border-bottom:1px solid var(--border);text-align:center;padding:70px 24px}
+.stat q{font-size:clamp(26px,4.5vw,46px);font-weight:800;letter-spacing:-1px;display:block;max-width:820px;margin:0 auto;line-height:1.25}
+.stat q .hl{background:linear-gradient(135deg,var(--acc),var(--acc2));-webkit-background-clip:text;background-clip:text;color:transparent}
+/* feature blocks */
+.feat{display:grid;grid-template-columns:1fr 1fr;gap:56px;align-items:center;margin-bottom:80px}
+.feat:last-child{margin-bottom:0}
+.feat.rev>.ftext{order:2}
+.ftext h3{font-size:clamp(24px,3vw,34px);font-weight:800;letter-spacing:-.5px;margin-bottom:14px}
+.ftext p{color:var(--muted);margin-bottom:18px;font-size:16px}
+.ftext ul{list-style:none;display:grid;gap:10px}
+.ftext li{display:flex;gap:10px;align-items:flex-start;font-size:15px;color:#d6d3cb}
+.tick{color:var(--acc);font-weight:800}
+.fvis{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);min-height:280px;display:flex;align-items:center;justify-content:center;padding:34px;position:relative;overflow:hidden}
+.mock{width:100%;max-width:380px}
+.mock-row{background:#0e0e14;border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:12px;font-size:14px}
+.mock-row small{color:var(--muted);display:block;font-size:12px;margin-bottom:4px}
+.lang-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;width:100%;max-width:380px}
+.lang{background:#0e0e14;border:1px solid var(--border);border-radius:12px;padding:18px;text-align:center;font-weight:700}
+.lang small{display:block;color:var(--muted);font-weight:500;font-size:12px;margin-top:4px}
+.lang.hot{border-color:var(--acc);background:rgba(255,176,32,.07)}
+/* steps */
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+.step{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:32px 26px;text-align:center}
+.step .n{width:46px;height:46px;border-radius:50%;background:linear-gradient(135deg,var(--acc),var(--acc2));color:#1a1206;font-weight:800;font-size:20px;display:flex;align-items:center;justify-content:center;margin:0 auto 18px}
+.step h3{margin-bottom:8px;font-size:18px}
+.step p{color:var(--muted);font-size:14px}
+/* pricing */
+.price-card{max-width:520px;margin:0 auto;background:var(--card);border:2px solid var(--acc);border-radius:22px;padding:44px 40px;text-align:center;position:relative;box-shadow:0 24px 70px rgba(255,176,32,.12)}
+.free-badge{position:absolute;top:-16px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,var(--acc),var(--acc2));color:#1a1206;font-weight:800;font-size:13px;padding:6px 20px;border-radius:999px;letter-spacing:1px}
+.price-card h3{font-size:24px;margin-bottom:4px}
+.price{font-size:56px;font-weight:800;letter-spacing:-2px;margin:10px 0}
+.price small{font-size:16px;color:var(--muted);font-weight:600;letter-spacing:0}
+.flist{list-style:none;text-align:left;margin:26px 0 32px;display:grid;gap:12px}
+.flist li{display:flex;gap:12px;align-items:flex-start;font-size:15px}
+.note{margin-top:22px;color:var(--muted);font-size:14px}
+/* story */
+.story{max-width:760px;margin:0 auto;text-align:center}
+.story p{color:var(--muted);font-size:17px;margin-bottom:18px}
+.story p b{color:var(--text)}
+/* faq */
+.faq{max-width:760px;margin:0 auto}
+.faq-item{background:var(--card);border:1px solid var(--border);border-radius:14px;margin-bottom:12px;overflow:hidden}
+.faq-q{width:100%;background:none;border:0;color:var(--text);font-family:inherit;font-size:16px;font-weight:700;text-align:left;padding:20px 22px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:12px}
+.faq-q .plus{color:var(--acc);font-size:22px;font-weight:400;transition:transform .25s;flex-shrink:0}
+.faq-item.open .faq-q .plus{transform:rotate(45deg)}
+.faq-a{max-height:0;overflow:hidden;transition:max-height .3s ease;color:var(--muted);font-size:15px}
+.faq-a p{padding:0 22px 20px}
+/* final cta */
+.final{background:linear-gradient(135deg,rgba(255,176,32,.12),rgba(255,107,53,.05));border-top:1px solid var(--border);text-align:center;padding:90px 24px}
+.final h2{font-size:clamp(30px,5vw,52px);font-weight:800;letter-spacing:-1.5px;margin-bottom:16px}
+.final p{color:var(--muted);margin-bottom:32px;font-size:17px}
+/* footer */
+footer{border-top:1px solid var(--border);padding:44px 0;color:var(--muted);font-size:14px}
+.foot{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:18px}
+.foot-links{display:flex;gap:24px}
+/* reveal */
+.rv{opacity:0;transform:translateY(26px);transition:opacity .7s ease,transform .7s ease}
+.rv.on{opacity:1;transform:none}
+/* responsive */
+@media(max-width:900px){
+  .grid4{grid-template-columns:repeat(2,1fr)}
+  .feat{grid-template-columns:1fr;gap:28px}
+  .feat.rev>.ftext{order:0}
+  .steps{grid-template-columns:1fr}
+}
+@media(max-width:640px){
+  .nav-links{display:none;position:absolute;top:68px;left:0;right:0;background:var(--bg2);flex-direction:column;padding:18px 24px;gap:16px;border-bottom:1px solid var(--border)}
+  .nav-links.open{display:flex}
+  .burger{display:block}
+  .nav-cta{display:none}
+  .grid4{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<nav id="nav">
+  <div class="wrap nav-in">
+    <a class="logo" href="#top"><span class="logo-badge">CC</span>Captionsio</a>
+    <div class="nav-links" id="navLinks">
+      <a href="#styles">Styles</a>
+      <a href="#features">Features</a>
+      <a href="#pricing">Pricing</a>
+      <a href="#faq">FAQ</a>
+    </div>
+    <a class="btn nav-cta" href="https://captionsio.streamlit.app/" target="_blank" rel="noopener">Launch App</a>
+    <button class="burger" id="burger" aria-label="Menu">☰</button>
+  </div>
+</nav>
+
+<header class="hero" id="top">
+  <div class="wrap">
+    <span class="eyebrow rv">100% FREE &nbsp;•&nbsp; NO SIGN-UP &nbsp;•&nbsp; NO WATERMARK</span>
+    <h1 class="rv">Captions that <span class="hl">speak your language.</span></h1>
+    <p class="sub rv">Captionsio auto-generates accurate captions in Hinglish, Hindi, Urdu and English — right in your browser. Download an SRT or a video with captions burned in. Free forever.</p>
+    <div class="cta-row rv">
+      <a class="btn" href="https://captionsio.streamlit.app/" target="_blank" rel="noopener">Start Captioning — Free</a>
+      <a class="btn btn-ghost" href="#how">See how it works</a>
+    </div>
+    <div class="player rv">
+      <div class="player-top"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+      <div class="player-screen">
+        <div class="play-hint">▶</div>
+        <div class="fake-sub"><span id="karaoke">yeh video <span class="kw">ab</span> aur bhi zyada interesting lag rahi hai</span></div>
+        <div class="bar"><i></i></div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="marquee">
+  <div class="strip-title">SELECT YOUR LANGUAGE</div>
+  <div class="mq-track" id="langMq">
+    <span><b>●</b> HINGLISH</span><span><b>●</b> HINDI</span><span><b>●</b> URDU</span><span><b>●</b> ENGLISH</span><span><b>●</b> AUTO-DETECT</span>
+    <span><b>●</b> HINGLISH</span><span><b>●</b> HINDI</span><span><b>●</b> URDU</span><span><b>●</b> ENGLISH</span><span><b>●</b> AUTO-DETECT</span>
+  </div>
+</div>
+
+<section id="styles">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <h2>Caption styles you'll love</h2>
+      <p>Trendy, readable styles tuned for desi content — pick a position, pick a size, done.</p>
+    </div>
+    <div class="grid4">
+      <div class="scard rv"><div class="preview"><div class="cap pop">YEH MOMENT<br>LEGENDARY THA 🔥</div></div><div class="scard-body"><h3>Hinglish Pop</h3><p>Bold yellow pop style — the Reels favourite.</p></div></div>
+      <div class="scard rv"><div class="preview"><div class="cap min">aur phir jo hua, kisi ne socha nahi tha…</div></div><div class="scard-body"><h3>Clean Minimal</h3><p>Subtle white captions for vlogs &amp; podcasts.</p></div></div>
+      <div class="scard rv"><div class="preview"><div class="cap bold">BREAKING NEWS</div></div><div class="scard-body"><h3>Bold Statement</h3><p>High-impact blocks for hooks &amp; highlights.</p></div></div>
+      <div class="scard rv"><div class="preview"><div class="cap topc">top par bhi lagao 👆</div><div class="cap min" style="position:absolute;bottom:14px;left:0;right:0">ya neeche 👇</div></div><div class="scard-body"><h3>Top / Bottom</h3><p>Place captions wherever your content needs.</p></div></div>
+    </div>
+    <div class="pills rv">
+      <span class="pill">Top / Bottom position</span>
+      <span class="pill">Normal / Large size</span>
+      <span class="pill">Roman-script Hinglish</span>
+      <span class="pill">No watermark</span>
+    </div>
+  </div>
+</section>
+
+<div class="stat rv">
+  <q>₹0. No watermark. No sign-up. <span class="hl">No catch.</span></q>
+</div>
+
+<section id="features">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <h2>Everything you need. Nothing you pay for.</h2>
+      <p>Upload, generate, download — that's the whole workflow.</p>
+    </div>
+
+    <div class="feat rv">
+      <div class="ftext">
+        <h3>SRT + burned-in video, in one click</h3>
+        <p>Upload your video and get two things: a clean <b>.srt</b> subtitle file for YouTube, and an <b>MP4 with captions burned in</b> for Reels, Shorts and TikTok.</p>
+        <ul>
+          <li><span class="tick">✓</span> MP4, MOV, MKV, WebM &amp; AVI uploads</li>
+          <li><span class="tick">✓</span> Downloadable SRT in seconds</li>
+          <li><span class="tick">✓</span> Burned-in MP4 preview &amp; download</li>
+        </ul>
+      </div>
+      <div class="fvis"><div class="mock">
+        <div class="mock-row"><small>1 &nbsp;upload</small>📤 my-vlog.mp4 <b style="color:var(--acc)">uploaded ✓</b></div>
+        <div class="mock-row"><small>2 &nbsp;generate</small>⚙️ captions ready in ~40 sec</div>
+        <div class="mock-row"><small>3 &nbsp;download</small>⬇️ captions.srt &nbsp;·&nbsp; ⬇️ captioned-video.mp4</div>
+      </div></div>
+    </div>
+
+    <div class="feat rev rv">
+      <div class="ftext">
+        <h3>Hinglish, Hindi, Urdu, English — auto-detected</h3>
+        <p>Powered by AI speech recognition running in the cloud. Just upload — Captionsio figures out the language itself. No API key, no setup, no technical stuff.</p>
+        <ul>
+          <li><span class="tick">✓</span> Roman-script Hinglish output</li>
+          <li><span class="tick">✓</span> Auto language detection</li>
+          <li><span class="tick">✓</span> Zero configuration needed</li>
+        </ul>
+      </div>
+      <div class="fvis"><div class="lang-grid">
+        <div class="lang hot">Hinglish<small>Roman script</small></div>
+        <div class="lang">हिन्दी<small>Devanagari</small></div>
+        <div class="lang">اردو<small>Urdu script</small></div>
+        <div class="lang">English<small>Latin</small></div>
+      </div></div>
+    </div>
+
+    <div class="feat rv">
+      <div class="ftext">
+        <h3>Built for desi creators, by a desi creator</h3>
+        <p>Western tools mangle our mixed speech. Captionsio was built while producing Hindi story videos — so it understands the way we actually talk: half English, half desi, full emotion.</p>
+        <ul>
+          <li><span class="tick">✓</span> Made for YouTube, Reels &amp; Shorts workflows</li>
+          <li><span class="tick">✓</span> Free forever — no dollars, no subscriptions</li>
+          <li><span class="tick">✓</span> Runs in your browser, nothing to install</li>
+        </ul>
+      </div>
+      <div class="fvis"><div class="mock">
+        <div class="mock-row"><small>🎬 youtubers</small>Long videos → SRT in minutes</div>
+        <div class="mock-row"><small>📱 reels creators</small>Burned-in captions, ready to post</div>
+        <div class="mock-row"><small>🎙️ podcasters</small>Clean transcripts for clips</div>
+      </div></div>
+    </div>
+  </div>
+</section>
+
+<section id="how" style="background:var(--bg2);border-top:1px solid var(--border);border-bottom:1px solid var(--border)">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <h2>Live in 3 steps</h2>
+      <p>No tutorial needed. Seriously.</p>
+    </div>
+    <div class="steps">
+      <div class="step rv"><div class="n">1</div><h3>Upload your video</h3><p>Drag &amp; drop any MP4, MOV, MKV, WebM or AVI file.</p></div>
+      <div class="step rv"><div class="n">2</div><h3>Pick language &amp; style</h3><p>Choose Hinglish, Hindi, Urdu or English — plus caption position and size.</p></div>
+      <div class="step rv"><div class="n">3</div><h3>Download &amp; post</h3><p>Grab the SRT or the burned-in MP4 and upload anywhere.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="pricing">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <h2>One plan. Free forever.</h2>
+      <p>No Pro tier. No Premium tier. Everything is free — that's the whole pricing page.</p>
+    </div>
+    <div class="price-card rv">
+      <span class="free-badge">FREE FOREVER</span>
+      <h3>Captionsio Free</h3>
+      <div class="price">$0<small> / forever</small></div>
+      <ul class="flist">
+        <li><span class="tick">✓</span> All languages: Hinglish, Hindi, Urdu, English</li>
+        <li><span class="tick">✓</span> Auto language detection</li>
+        <li><span class="tick">✓</span> SRT file downloads</li>
+        <li><span class="tick">✓</span> Burned-in MP4 export</li>
+        <li><span class="tick">✓</span> Top / bottom caption position</li>
+        <li><span class="tick">✓</span> Normal / large caption sizes</li>
+        <li><span class="tick">✓</span> No watermark, ever</li>
+        <li><span class="tick">✓</span> No sign-up, no API key</li>
+      </ul>
+      <a class="btn" href="https://captionsio.streamlit.app/" target="_blank" rel="noopener" style="width:100%;justify-content:center">Launch Captionsio — Free</a>
+      <p class="note">No credit card. No trial expiry. Just captions.</p>
+    </div>
+  </div>
+</section>
+
+<section id="story" style="padding-top:20px">
+  <div class="wrap">
+    <div class="story rv">
+      <div class="sec-head" style="margin-bottom:26px"><h2>Why we built Captionsio</h2></div>
+      <p>We produce Hindi story videos for YouTube — every episode needed captions in <b>Hinglish</b>. The big tools either charged in dollars or turned our desi speech into nonsense.</p>
+      <p>So we built our own: <b>free, desi-first, and dead simple</b>. No subscriptions, no watermarks, no "upgrade to Pro" popups. If you make videos in our languages, this tool is for you.</p>
+    </div>
+  </div>
+</section>
+
+<section id="faq" style="padding-top:20px">
+  <div class="wrap">
+    <div class="sec-head rv"><h2>Frequently asked questions</h2></div>
+    <div class="faq">
+      <div class="faq-item rv"><button class="faq-q">Is Captionsio really 100% free?<span class="plus">+</span></button><div class="faq-a"><p>Yes. There is no Pro or Premium plan — every feature on this page is free, with no watermark and no sign-up required.</p></div></div>
+      <div class="faq-item rv"><button class="faq-q">Which languages are supported?<span class="plus">+</span></button><div class="faq-a"><p>Hinglish (Roman script), Hindi, Urdu and English — plus auto-detect, so you can just upload and let Captionsio figure it out.</p></div></div>
+      <div class="faq-item rv"><button class="faq-q">Do I need an API key or an account?<span class="plus">+</span></button><div class="faq-a"><p>No. Open the app, upload your video, and generate captions. Nothing to install, no keys, no login.</p></div></div>
+      <div class="faq-item rv"><button class="faq-q">What files can I upload?<span class="plus">+</span></button><div class="faq-a"><p>MP4, MOV, MKV, WebM and AVI videos are supported.</p></div></div>
+      <div class="faq-item rv"><button class="faq-q">What do I get at the end?<span class="plus">+</span></button><div class="faq-a"><p>A downloadable .srt subtitle file (perfect for YouTube) and optionally an MP4 with the captions burned in (perfect for Reels, Shorts and TikTok).</p></div></div>
+      <div class="faq-item rv"><button class="faq-q">Are the captions 100% accurate?<span class="plus">+</span></button><div class="faq-a"><p>AI transcription is very good, especially for clear speech — but like every auto-caption tool, it's worth a quick review of important lines before you publish.</p></div></div>
+    </div>
+  </div>
+</section>
+
+<div class="final rv">
+  <h2>Your next video deserves captions.</h2>
+  <p>Free forever. Ready in seconds. Made for desi creators.</p>
+  <a class="btn" href="https://captionsio.streamlit.app/" target="_blank" rel="noopener" style="font-size:17px;padding:15px 38px">Start Captioning — It's Free</a>
+</div>
+
+<footer>
+  <div class="wrap foot">
+    <a class="logo" href="#top" style="font-size:18px"><span class="logo-badge" style="width:28px;height:28px;font-size:11px">CC</span>Captionsio</a>
+    <div class="foot-links">
+      <a href="#features">Features</a>
+      <a href="#pricing">Pricing</a>
+      <a href="#faq">FAQ</a>
+      <a href="https://captionsio.streamlit.app/" target="_blank" rel="noopener">Launch App</a>
+    </div>
+    <span>© 2026 Captionsio · Made for desi creators</span>
+  </div>
+</footer>
+
+<script>
+// navbar scroll
+const nav=document.getElementById('nav');
+addEventListener('scroll',()=>nav.classList.toggle('scrolled',scrollY>30),{passive:true});
+// mobile menu
+const burger=document.getElementById('burger'),links=document.getElementById('navLinks');
+burger.addEventListener('click',()=>links.classList.toggle('open'));
+links.querySelectorAll('a').forEach(a=>a.addEventListener('click',()=>links.classList.remove('open')));
+// reveal on scroll
+const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('on');io.unobserve(e.target)}}),{threshold:.12});
+document.querySelectorAll('.rv').forEach(el=>io.observe(el));
+// faq accordion
+document.querySelectorAll('.faq-item').forEach(item=>{
+  const q=item.querySelector('.faq-q'),a=item.querySelector('.faq-a');
+  q.addEventListener('click',()=>{
+    const open=item.classList.contains('open');
+    document.querySelectorAll('.faq-item.open').forEach(o=>{o.classList.remove('open');o.querySelector('.faq-a').style.maxHeight=null});
+    if(!open){item.classList.add('open');a.style.maxHeight=a.scrollHeight+'px'}
+  });
+});
+// hero karaoke caption cycle
+const lines=[
+  'yeh video <span class="kw">ab</span> aur bhi zyada interesting lag rahi hai',
+  'toh dosto, <span class="kw">kahani</span> yahan se shuru hoti hai',
+  '<span class="kw">like</span> aur <span class="kw">subscribe</span> karna mat bhoolna!'
+];
+let li=0;const kEl=document.getElementById('karaoke');
+setInterval(()=>{li=(li+1)%lines.length;kEl.style.opacity=0;setTimeout(()=>{kEl.innerHTML=lines[li];kEl.style.opacity=1},250)},3500);
+kEl.style.transition='opacity .25s';
+</script>
+</body>
+</html>
