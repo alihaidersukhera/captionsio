@@ -5,6 +5,7 @@ import urllib.request
 import wave
 
 import numpy as np
+import pandas as pd
 import streamlit as st
 from faster_whisper import WhisperModel
 from indic_transliteration import sanscript
@@ -13,9 +14,7 @@ from indic_transliteration.sanscript import transliterate
 # ----------------------------------------------------------------------------
 # Page setup
 # ----------------------------------------------------------------------------
-st.set_page_config(page_title="Captions Studio", page_icon="🎬", layout="centered")
-st.title("🎬 Captions Studio")
-st.caption("Video upload karo — Hinglish, Hindi, Urdu ya English me auto captions lagao.")
+st.set_page_config(page_title="Captionsio — Free Auto-Captions", page_icon="🎬", layout="wide")
 
 LANGS = {
     "Hinglish (Roman)": "hinglish",
@@ -48,7 +47,8 @@ STYLES = {
     "Default": None,
     "Ali Abdal": {"transform": None, "style": (
         "FontName=Noto Sans,FontSize=22,PrimaryColour=&H00000000,"
-        "BackColour=&H00FFFFFF,BorderStyle=3,Outline=1,Shadow=0,"
+        "BackColour=&H00FFFFFF,OutlineColour=&H00FFFFFF,"
+        "BorderStyle=3,Outline=1,Shadow=0,"
         "Alignment=2,MarginV=45,Bold=1")},
     "Alex Hormozi": {"transform": "upper", "style": (
         "FontName=Noto Sans,FontSize=28,PrimaryColour=&H00FFFFFF,"
@@ -60,7 +60,8 @@ STYLES = {
         "Alignment=5,Bold=1")},
     "Bubble": {"transform": None, "style": (
         "FontName=Noto Serif,FontSize=24,PrimaryColour=&H00FFFFFF,"
-        "BackColour=&H00000000,BorderStyle=3,Outline=1,Shadow=0,"
+        "BackColour=&H00000000,OutlineColour=&H00000000,"
+        "BorderStyle=3,Outline=1,Shadow=0,"
         "Alignment=5,Bold=0")},
     "Raj Shamani": {"transform": "upper", "style": (
         "FontName=Noto Sans,FontSize=28,PrimaryColour=&H0000FF00,"
@@ -68,7 +69,8 @@ STYLES = {
         "Alignment=5,Bold=1")},
     "Varun Mayya": {"transform": "lower", "style": (
         "FontName=Noto Sans,FontSize=26,PrimaryColour=&H00FFFFFF,"
-        "BackColour=&H00EB6325,BorderStyle=3,Outline=1,Shadow=0,"
+        "BackColour=&H00EB6325,OutlineColour=&H00EB6325,"
+        "BorderStyle=3,Outline=1,Shadow=0,"
         "Alignment=5,Bold=1")},
     "Devin Jatho": {"transform": "upper", "style": (
         "FontName=Noto Sans,FontSize=28,PrimaryColour=&H00FFFFFF,"
@@ -79,6 +81,43 @@ STYLES = {
         "OutlineColour=&H0000D7FF,BorderStyle=1,Outline=3,Shadow=1,"
         "Alignment=5,Bold=1")},
 }
+
+# HTML previews for the visual template gallery (mimic each style with CSS)
+def _sample(name):
+    t = "yeh video ab aur bhi interesting lag rahi hai"
+    tr = (STYLES.get(name) or {}).get("transform")
+    if tr == "upper":
+        return t.upper()
+    if tr == "lower":
+        return t.lower()
+    return t
+
+
+PREVIEWS = {
+    "Default": '<div style="position:absolute;bottom:12px;left:0;right:0;text-align:center;color:#fff;font-weight:700;font-size:15px;text-shadow:2px 2px 0 #000;">{t}</div>',
+    "Ali Abdal": '<div style="position:absolute;bottom:14px;left:0;right:0;text-align:center;"><span style="background:#fff;color:#111;border-radius:999px;padding:7px 14px;font-size:13px;font-weight:600;">{t}</span></div>',
+    "Alex Hormozi": '<div style="position:absolute;top:38%;left:10px;right:10px;text-align:left;color:#fff;font-weight:800;font-size:19px;text-shadow:0 0 8px #39ff39,0 0 18px rgba(57,255,57,.7),2px 2px 0 #062806;">{t}</div>',
+    "Iman Gadzhi": '<div style="position:absolute;top:40%;left:10px;right:10px;text-align:center;color:#fff;font-weight:800;font-size:18px;text-shadow:2px 2px 0 #000,-2px 2px 0 #000,2px -2px 0 #000,-2px -2px 0 #000;">{t}</div>',
+    "Bubble": '<div style="position:absolute;top:40%;left:0;right:0;text-align:center;"><span style="font-family:Georgia,serif;font-size:15px;color:#fff;background:rgba(0,0,0,.9);padding:7px 13px;border-radius:8px;">{t}</span></div>',
+    "Raj Shamani": '<div style="position:absolute;top:40%;left:10px;right:10px;text-align:center;color:#00ff00;font-weight:800;font-size:18px;text-shadow:2px 2px 0 #000;">{t}</div>',
+    "Varun Mayya": '<div style="position:absolute;top:40%;left:0;right:0;text-align:center;"><span style="font-size:16px;font-weight:700;color:#fff;background:#2563eb;padding:6px 13px;border-radius:8px;">{t}</span></div>',
+    "Devin Jatho": '<div style="position:absolute;top:40%;left:10px;right:10px;text-align:center;color:#fff;font-weight:800;font-size:18px;text-shadow:0 0 10px #2563eb,0 0 22px rgba(37,99,235,.85);">{t}</div>',
+    "Mr Beast": '<div style="position:absolute;top:38%;left:10px;right:10px;text-align:center;color:#fff;font-weight:800;font-size:20px;-webkit-text-stroke:1px #ffd700;text-shadow:0 0 12px rgba(255,215,0,.65),3px 3px 0 #000;">{t}</div>',
+}
+
+
+def template_card(name):
+    sel = name == st.session_state.style
+    bw, bc = ("3px", "#ffb020") if sel else ("1px", "#2a2a36")
+    inner = PREVIEWS[name].format(t=_sample(name))
+    check = " ✅" if sel else ""
+    return (
+        f'<div style="border:{bw} solid {bc};border-radius:14px;overflow:hidden;'
+        f'background:linear-gradient(165deg,#1e1c29,#12141f 60%,#1a1410);">'
+        f'<div style="position:relative;aspect-ratio:16/9;">{inner}</div>'
+        f'<div style="padding:9px;text-align:center;font-weight:700;font-size:13.5px;'
+        f'border-top:1px solid #2a2a36;">{name}{check}</div></div>'
+    )
 
 
 @st.cache_resource(show_spinner=False)
@@ -156,19 +195,16 @@ def segments_to_srt(segments):
     return "\n".join(out)
 
 
-def burn_captions(video_path, srt_path, out_path, position="bottom", size="normal",
-                 style_name="Default"):
+def burn_captions(video_path, srt_path, out_path, style_name="Default"):
     preset = STYLES.get(style_name)
     if preset:
         style = preset["style"]
     else:
-        align = "8" if position == "top" else "2"  # libass: 8=top-center, 2=bottom-center
-        fsize = "26" if size == "large" else "20"
         style = (
-            f"FontName=Noto Sans,FontSize={fsize},"
+            "FontName=Noto Sans,FontSize=20,"
             "PrimaryColour=&H00FFFFFF,OutlineColour=&H90000000,"
             "BorderStyle=1,Outline=2,Shadow=0,"
-            f"Alignment={align},MarginV=45,Bold=1"
+            "Alignment=2,MarginV=45,Bold=1"
         )
     # escape for libass subtitles filter
     srt_esc = srt_path.replace("\\", "/").replace(":", "\\:").replace("'", "\\'")
@@ -180,115 +216,186 @@ def burn_captions(video_path, srt_path, out_path, position="bottom", size="norma
 
 
 # ----------------------------------------------------------------------------
-# UI
+# Session state
+# ----------------------------------------------------------------------------
+for _k, _v in {"style": "Default", "segs": None, "video_bytes": None,
+               "video_ext": ".mp4", "gen_id": 0, "burned": None}.items():
+    if _k not in st.session_state:
+        st.session_state[_k] = _v
+
+# ----------------------------------------------------------------------------
+# Sidebar — dashboard
+# ----------------------------------------------------------------------------
+with st.sidebar:
+    st.markdown("## 🎬 Captionsio")
+    st.caption("Free auto-captions for desi creators")
+    st.divider()
+    st.markdown("### 💯 100% FREE")
+    st.caption("No sign-up • No watermark • No Pro plan")
+    st.divider()
+    st.markdown("**🎨 9 caption styles**")
+    st.caption("Default + 8 Kalakar-style templates: Ali Abdal, Hormozi, Gadzhi, Bubble, Raj Shamani, Varun Mayya, Devin Jatho, Mr Beast")
+    st.divider()
+    st.markdown("**🌍 Languages**")
+    st.caption("Hinglish (Roman) • Hindi • Urdu • English • Auto-detect")
+    st.divider()
+    st.link_button("🌐 Website", "https://alihaidersukhera.github.io/captionsio/")
+
+# ----------------------------------------------------------------------------
+# Main — upload + settings + template gallery
 # ----------------------------------------------------------------------------
 ensure_fonts()
 
-uploaded = st.file_uploader("📤 Video upload karo", type=["mp4", "mov", "mkv", "webm", "avi"])
-col1, col2 = st.columns(2)
-with col1:
-    lang_label = st.selectbox("🌍 Caption language", list(LANGS.keys()), index=0)
-with col2:
-    model_choice = st.selectbox("🧠 Model", ["base (fast)", "small (best)"], index=0)
-col3, col4 = st.columns(2)
-with col3:
-    style_name = st.selectbox("🎨 Caption style", list(STYLES.keys()), index=0)
-with col4:
-    size = st.selectbox("🔠 Size", ["normal", "large"], index=0,
-                        disabled=(style_name != "Default"))
+st.title("🎬 Captionsio")
+st.caption("Video upload karo — Hinglish, Hindi, Urdu ya English me auto captions lagao. Bilkul free!")
 
-if style_name == "Default":
-    position = st.selectbox("📍 Position", ["bottom", "top"], index=0)
-else:
-    position = "bottom"  # style apna position khud set karta hai
-    st.caption("💡 Style apna position khud set karta hai — neeche preview me dekho.")
+if not st.session_state.segs:
+    st.subheader("1️⃣ Video upload karo")
+    uploaded = st.file_uploader("MP4, MOV, MKV, WebM ya AVI — yahan drop karo",
+                                type=["mp4", "mov", "mkv", "webm", "avi"])
 
-if LANGS[lang_label] == "hinglish":
-    st.info("💡 Hinglish ke liye **small** model auto-use hoga (Urdu/Hindi dono ko Roman me laata hai, thoda slow).")
+    c1, c2 = st.columns(2)
+    with c1:
+        lang_label = st.selectbox("🌍 Caption language", list(LANGS.keys()), index=0)
+    with c2:
+        model_choice = st.selectbox("🧠 Model", ["base (fast)", "small (best)"], index=0)
+    if LANGS[lang_label] == "hinglish":
+        st.info("💡 Hinglish ke liye **small** model auto-use hoga (Urdu/Hindi dono ko Roman me laata hai, thoda slow).")
 
-burn = st.checkbox("🎞️ Captions video me burn karo (nahi to sirf SRT milega)", value=True)
+    st.subheader("2️⃣ Caption style chuno")
+    st.caption(f"Selected: **{st.session_state.style}** — neeche kisi bhi template par click karo")
+    names = list(STYLES.keys())
+    for i in range(0, len(names), 3):
+        cols = st.columns(3)
+        for j, name in enumerate(names[i:i + 3]):
+            with cols[j]:
+                st.markdown(template_card(name), unsafe_allow_html=True)
+                picked = name == st.session_state.style
+                if st.button("✅ Selected" if picked else "Use this style",
+                             key=f"pick_{name}", use_container_width=True, disabled=picked):
+                    st.session_state.style = name
+                    st.rerun()
 
-if uploaded and st.button("✨ Captions Generate Karo", type="primary"):
-    lang = LANGS[lang_label]
-    # Hinglish needs the small model (normalizes Urdu/Hindi speech -> Devanagari -> clean Roman)
-    use_model = "small" if lang == "hinglish" else ("small" if model_choice.startswith("small") else "base")
-    with tempfile.TemporaryDirectory() as tmp:
-        video_path = os.path.join(tmp, "input" + os.path.splitext(uploaded.name)[1])
-        with open(video_path, "wb") as f:
-            f.write(uploaded.getbuffer())
+    st.subheader("3️⃣ Generate karo")
+    if uploaded and st.button("✨ Captions Generate Karo", type="primary", use_container_width=True):
+        lang = LANGS[lang_label]
+        # Hinglish needs the small model (normalizes Urdu/Hindi speech -> Devanagari -> clean Roman)
+        use_model = "small" if lang == "hinglish" else ("small" if model_choice.startswith("small") else "base")
+        with tempfile.TemporaryDirectory() as tmp:
+            video_path = os.path.join(tmp, "input" + os.path.splitext(uploaded.name)[1])
+            with open(video_path, "wb") as f:
+                f.write(uploaded.getbuffer())
 
-        # 1. audio extract (16kHz mono wav — Whisper's favourite)
-        wav_path = os.path.join(tmp, "audio.wav")
-        with st.spinner("🔊 Audio extract ho raha hai..."):
-            subprocess.run(
-                ["ffmpeg", "-y", "-i", video_path, "-ar", "16000", "-ac", "1", wav_path],
-                capture_output=True, check=True,
-            )
+            # 1. audio extract (16kHz mono wav — Whisper's favourite)
+            wav_path = os.path.join(tmp, "audio.wav")
+            with st.spinner("🔊 Audio extract ho raha hai..."):
+                subprocess.run(
+                    ["ffmpeg", "-y", "-i", video_path, "-ar", "16000", "-ac", "1", wav_path],
+                    capture_output=True, check=True,
+                )
 
-        # 2. transcribe
-        with st.spinner(f"🧠 AI sun raha hai ({use_model} model)..."):
-            model = get_model(use_model)
-            kwargs = dict(language=WHISPER_LANG[lang], beam_size=5, vad_filter=True)
-            if lang == "hinglish":
-                kwargs["initial_prompt"] = "Yeh ek kahani ka Hinglish transcript hai."
-            # Load the wav into a numpy array ourselves and pass the array:
-            # this bypasses faster-whisper's PyAV-based decoder (av.open),
-            # which crashes with some av/faster-whisper version combos.
-            with wave.open(wav_path, "rb") as wf:
-                raw = wf.readframes(wf.getnframes())
-                audio = np.frombuffer(raw, dtype=np.int16).astype(np.float32) / 32768.0
-            segments, info = model.transcribe(audio, **kwargs)
-            segs = []
-            for s in segments:
-                txt = s.text.strip()
-                if not txt:
-                    continue
+            # 2. transcribe
+            with st.spinner(f"🧠 AI sun raha hai ({use_model} model)..."):
+                model = get_model(use_model)
+                kwargs = dict(language=WHISPER_LANG[lang], beam_size=5, vad_filter=True)
                 if lang == "hinglish":
-                    txt = to_hinglish(txt)
-                # style ke hisaab se case transform (Hormozi/Gadzhi = UPPER, Mayya = lower)
-                _tr = (STYLES.get(style_name) or {}).get("transform")
-                if _tr == "upper":
-                    txt = txt.upper()
-                elif _tr == "lower":
-                    txt = txt.lower()
-                segs.append((s.start, s.end, txt))
+                    kwargs["initial_prompt"] = "Yeh ek kahani ka Hinglish transcript hai."
+                # Load the wav into a numpy array ourselves and pass the array:
+                # this bypasses faster-whisper's PyAV-based decoder (av.open),
+                # which crashes with some av/faster-whisper version combos.
+                with wave.open(wav_path, "rb") as wf:
+                    raw = wf.readframes(wf.getnframes())
+                    audio = np.frombuffer(raw, dtype=np.int16).astype(np.float32) / 32768.0
+                segments, info = model.transcribe(audio, **kwargs)
+                segs = []
+                for s in segments:
+                    txt = s.text.strip()
+                    if not txt:
+                        continue
+                    if lang == "hinglish":
+                        txt = to_hinglish(txt)
+                    # style ke hisaab se case transform (Hormozi/Gadzhi = UPPER, Mayya = lower)
+                    _tr = (STYLES.get(st.session_state.style) or {}).get("transform")
+                    if _tr == "upper":
+                        txt = txt.upper()
+                    elif _tr == "lower":
+                        txt = txt.lower()
+                    segs.append((s.start, s.end, txt))
 
-        if not segs:
-            st.error("Koi speech detect nahi hui. Koi aur video try karo.")
-        else:
-            st.success(f"✅ {len(segs)} caption segments tayyar!")
-            with st.expander("📝 Captions preview"):
-                for a, b, t in segs[:30]:
-                    st.write(f"`{srt_timestamp(a)}` → {t}")
-                if len(segs) > 30:
-                    st.caption(f"...aur {len(segs) - 30} segments")
+            if not segs:
+                st.error("Koi speech detect nahi hui. Koi aur video try karo.")
+            else:
+                st.session_state.segs = segs
+                st.session_state.video_bytes = uploaded.getvalue()
+                st.session_state.video_ext = os.path.splitext(uploaded.name)[1]
+                st.session_state.burned = None
+                st.session_state.gen_id += 1
+                st.rerun()
+    elif not uploaded:
+        st.caption("👆 Pehle video upload karo, phir Generate dabao.")
 
-            srt_text = segments_to_srt(segs)
-            st.download_button(
-                "⬇️ SRT file download karo",
-                srt_text, file_name="captions.srt", mime="text/plain",
-            )
+# ----------------------------------------------------------------------------
+# Editor — review + edit captions, download SRT / burn video
+# ----------------------------------------------------------------------------
+else:
+    segs = st.session_state.segs
+    st.success(f"✅ {len(segs)} caption segments tayyar! Neeche text edit kar sakte ho.")
+    st.caption(f"Style: **{st.session_state.style}**")
 
-            if burn:
-                with st.spinner("🎞️ Video me captions burn ho rahe hain..."):
-                    srt_path = os.path.join(tmp, "captions.srt")
-                    with open(srt_path, "w", encoding="utf-8") as f:
-                        f.write(srt_text)
-                    out_path = os.path.join(tmp, "captioned.mp4")
-                    try:
-                        burn_captions(video_path, srt_path, out_path, position, size,
-                                      style_name=style_name)
-                        with open(out_path, "rb") as f:
-                            video_bytes = f.read()
-                        st.video(video_bytes)
-                        st.download_button(
-                            "⬇️ Captioned video download karo",
-                            video_bytes,
-                            file_name="captioned.mp4", mime="video/mp4",
-                        )
-                    except Exception as e:
-                        st.error("Burn-in fail ho gaya, lekin SRT upar se download kar lo.")
-                        st.exception(e)
+    df = pd.DataFrame(
+        [{"Start": srt_timestamp(a), "End": srt_timestamp(b), "Text": t} for a, b, t in segs]
+    )
+    edited = st.data_editor(
+        df, hide_index=True, use_container_width=True, num_rows="fixed",
+        column_config={
+            "Start": st.column_config.TextColumn("Start", disabled=True),
+            "End": st.column_config.TextColumn("End", disabled=True),
+            "Text": st.column_config.TextColumn("Caption text"),
+        },
+        key=f"cap_editor_{st.session_state.gen_id}",
+    )
+    new_segs = [(a, b, str(t)) for (a, b, _), t in
+                zip(segs, edited["Text"].tolist())]
+
+    srt_text = segments_to_srt(new_segs)
+    d1, d2, d3 = st.columns(3)
+    with d1:
+        st.download_button("⬇️ SRT download karo", srt_text,
+                           file_name="captions.srt", mime="text/plain",
+                           use_container_width=True)
+    with d2:
+        do_burn = st.button("🎞️ Burn & Preview", type="primary", use_container_width=True)
+    with d3:
+        if st.button("🔄 Nayi video", use_container_width=True):
+            for _k in ("segs", "video_bytes", "burned"):
+                st.session_state[_k] = None
+            st.rerun()
+
+    if do_burn:
+        with tempfile.TemporaryDirectory() as tmp:
+            video_path = os.path.join(tmp, "input" + st.session_state.video_ext)
+            with open(video_path, "wb") as f:
+                f.write(st.session_state.video_bytes)
+            srt_path = os.path.join(tmp, "captions.srt")
+            with open(srt_path, "w", encoding="utf-8") as f:
+                f.write(srt_text)
+            out_path = os.path.join(tmp, "captioned.mp4")
+            with st.spinner("🎞️ Video me captions burn ho rahe hain..."):
+                try:
+                    burn_captions(video_path, srt_path, out_path,
+                                  style_name=st.session_state.style)
+                    with open(out_path, "rb") as f:
+                        st.session_state.burned = f.read()
+                except Exception as e:
+                    st.error("Burn-in fail ho gaya, lekin SRT upar se download kar lo.")
+                    st.exception(e)
+                    st.session_state.burned = None
+
+    if st.session_state.burned:
+        st.video(st.session_state.burned)
+        st.download_button("⬇️ Captioned video download karo",
+                           st.session_state.burned,
+                           file_name="captioned.mp4", mime="video/mp4")
 
 st.divider()
 st.caption("💡 Tip: Hinglish mode Hindi audio ko Roman script me likhta hai — YouTube Shorts/Reels ke liye best.")
