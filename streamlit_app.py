@@ -266,10 +266,77 @@ def _hex_to_ass(h):
     return f"&H00{h[4:6]}{h[2:4]}{h[0:2]}".upper()
 
 
+def parse_ts(t, fallback):
+    """'hh:mm:ss,ms' / 'mm:ss,ms' / 'ss.ms' / seconds -> float seconds; fallback on failure."""
+    try:
+        s = str(t).strip().replace(".", ",")
+        if ":" in s:
+            *rest, last = s.split(":")
+            val = float(last.replace(",", "."))
+            mult = 1
+            for p in reversed(rest):
+                mult *= 60
+                val += int(p) * mult
+            return val
+        return float(s.replace(",", "."))
+    except Exception:
+        return fallback
+
+
+EMOJI_MAP = [
+    (("love", "pyaar", "mohabbat", "ishq"), "❤️"),
+    (("happy", "khush", "khushi"), "😊"),
+    (("sad", "dukhi", "gham", "udaas"), "😢"),
+    (("fire", "aag"), "🔥"),
+    (("money", "paisa", "daulat", "cash"), "💰"),
+    (("car", "gaadi", "gari"), "🚗"),
+    (("food", "khana", "khaana", "pizza", "biryani"), "🍽️"),
+    (("music", "geet", "gana", "song"), "🎵"),
+    (("dance", "naach"), "💃"),
+    (("dog", "kutta"), "🐶"),
+    (("cat", "billi"), "🐱"),
+    (("rain", "baarish", "barish"), "🌧️"),
+    (("sun", "dhoop"), "☀️"),
+    (("night", "raat"), "🌙"),
+    (("morning", "subah"), "🌅"),
+    (("run", "daud", "bhaag"), "🏃"),
+    (("gym", "exercise", "workout"), "💪"),
+    (("phone", "mobile"), "📱"),
+    (("video",), "🎥"),
+    (("photo", "tasveer", "picture"), "📸"),
+    (("party", "jashn"), "🎉"),
+    (("win", "jeet", "champion"), "🏆"),
+    (("king", "raja", "badshah"), "👑"),
+    (("laugh", "hansi", "funny"), "😂"),
+    (("cry", "rona"), "😭"),
+    (("wow", "amazing", "kamal"), "😱"),
+    (("star", "sitara"), "⭐"),
+    (("travel", "safar", "trip"), "✈️"),
+    (("train",), "🚂"),
+    (("home", "ghar"), "🏠"),
+    (("school",), "🏫"),
+    (("baby", "bacha", "bache"), "👶"),
+    (("friend", "dost", "dosti"), "🤝"),
+    (("wedding", "shaadi"), "💒"),
+    (("cricket",), "🏏"),
+    (("chai", "tea", "coffee"), "☕"),
+]
+
+
+def add_emoji(text):
+    """Pehla matching keyword -> caption ke end me emoji. Returns (new_text, emoji_or_None)."""
+    low = text.lower()
+    for keys, em in EMOJI_MAP:
+        if any(k in low for k in keys):
+            return text + " " + em, em
+    return text, None
+
+
 def burn_captions(video_path, sub_path, out_path, style_name="Default",
                   position="Bottom", size="Normal", align="Center",
                   font_color="#FFFFFF", bold=True, italic=False,
-                  karaoke=False, karaoke_color="&H0020B0FF", font_name="Noto Sans"):
+                  karaoke=False, karaoke_color="&H0020B0FF", font_name="Noto Sans",
+                  margin=45):
     preset = STYLES.get(style_name)
     if preset:
         style = preset["style"]
@@ -298,6 +365,7 @@ def burn_captions(video_path, sub_path, out_path, style_name="Default",
     style = re.sub(r"Bold=\d+", f"Bold={1 if bold else 0}", style)
     style += f",Italic={1 if italic else 0}"
     style = re.sub(r"FontName=[^,]+", f"FontName={font_name}", style)
+    style = re.sub(r"MarginV=\d+", f"MarginV={int(margin)}", style)
     # escape for libass subtitles filter (.srt or .ass)
     srt_esc = sub_path.replace("\\", "/").replace(":", "\\:").replace("'", "\\'")
     vf = f"subtitles='{srt_esc}':force_style='{style}'"
@@ -386,6 +454,12 @@ if not st.session_state.segs:
         st.checkbox("🔥 Karaoke word-highlight (bolta lafz chamkega)", value=True, key="karaoke")
         st.selectbox("📝 Words per caption", ["Auto", "3", "4", "5", "6", "8"], index=0, key="wpc",
                      help="Auto = AI ke segments; ya chhote punchy captions ke liye lafzon ki tadaad chuno")
+        st.checkbox("✨ Emoji auto-add (lafzon ke hisaab se)", value=False, key="emoji_on")
+        _kd = (STYLES.get(st.session_state.style) or {}).get("karaoke", "&H0020B0FF")
+        _khex = f"#{_kd[8:10]}{_kd[6:8]}{_kd[4:6]}"
+        st.color_picker("🎨 Highlight color (karaoke)", _khex, key="karaoke_color")
+        st.slider("↔️ Margin (safe zone)", 0, 150, 45, key="cap_margin",
+                  help="Captions kinare se kitne door hon — TikTok/Reels buttons se bachao")
         st.file_uploader("🔤 Custom font (TTF/OTF) — optional", type=["ttf", "otf"], key="font_up")
         _fu = st.session_state.get("font_up")
         if _fu is not None:
@@ -455,10 +529,14 @@ if not st.session_state.segs:
                         txt = s.text.strip()
                         if not txt:
                             continue
-                        words = [(_hl(w.word.strip()), w.start, w.end)
+                        words = [(_tr_txt(_hl(w.word.strip())), w.start, w.end)
                                  for w in (s.words or []) if w.word.strip()]
-                        segs.append((s.start, s.end, _tr_txt(_hl(txt)),
-                                     [(_tr_txt(x), a, b) for x, a, b in words]))
+                        txt = _tr_txt(_hl(txt))
+                        if st.session_state.get("emoji_on", False):
+                            txt, _em = add_emoji(txt)
+                            if _em:
+                                words.append((_em, s.end, s.end))
+                        segs.append((s.start, s.end, txt, words))
                 else:
                     n = int(wpc)
                     all_words = []
@@ -470,8 +548,12 @@ if not st.session_state.segs:
                     for i in range(0, len(all_words), n):
                         ch = all_words[i:i + n]
                         words = [(_tr_txt(x), a, b) for x, a, b in ch]
-                        segs.append((ch[0][1], ch[-1][2],
-                                     " ".join(x for x, _, _ in words), words))
+                        txt = " ".join(x for x, _, _ in words)
+                        if st.session_state.get("emoji_on", False):
+                            txt, _em = add_emoji(txt)
+                            if _em:
+                                words.append((_em, ch[-1][2], ch[-1][2]))
+                        segs.append((ch[0][1], ch[-1][2], txt, words))
 
             if not segs:
                 st.error("Koi speech detect nahi hui. Koi aur video try karo.")
@@ -490,7 +572,7 @@ if not st.session_state.segs:
 # ----------------------------------------------------------------------------
 else:
     segs = st.session_state.segs
-    st.success(f"✅ {len(segs)} caption segments tayyar! Neeche text edit kar sakte ho.")
+    st.success(f"✅ {len(segs)} caption segments tayyar! Neeche text aur Start/End time edit kar sakte ho.")
     st.caption(f"Style: **{st.session_state.style}** • "
                f"{st.session_state.get('cap_position', 'Bottom')} • "
                f"{st.session_state.get('cap_size', 'Normal')}") 
@@ -502,25 +584,33 @@ else:
     edited = st.data_editor(
         df, hide_index=True, use_container_width=True, num_rows="fixed",
         column_config={
-            "Start": st.column_config.TextColumn("Start", disabled=True),
-            "End": st.column_config.TextColumn("End", disabled=True),
+            "Start": st.column_config.TextColumn("Start", help="Edit kar sakte ho — jaise 00:00:03,500"),
+            "End": st.column_config.TextColumn("End", help="Edit kar sakte ho — jaise 00:00:06,000"),
             "Text": st.column_config.TextColumn("Caption text"),
         },
         key=f"cap_editor_{st.session_state.gen_id}",
     )
     edited_texts = edited["Text"].tolist()
+    edited_starts = edited["Start"].tolist()
+    edited_ends = edited["End"].tolist()
     new_segs = []  # (start, end, text, words)
     for i, (a, b, _t, orig_words) in enumerate(segs):
+        na = parse_ts(edited_starts[i] if i < len(edited_starts) else a, a)
+        nb = parse_ts(edited_ends[i] if i < len(edited_ends) else b, b)
+        if not (nb > na):
+            na, nb = a, b
         et = str(edited_texts[i]) if i < len(edited_texts) else ""
         ew = et.split()
-        if ew and len(ew) == len(orig_words):
-            words = [(ew[j], orig_words[j][1], orig_words[j][2]) for j in range(len(ew))]
+        if ew and len(ew) == len(orig_words) and (b - a) > 0:
+            sc = (nb - na) / (b - a)
+            words = [(ew[j], na + (orig_words[j][1] - a) * sc, na + (orig_words[j][2] - a) * sc)
+                     for j in range(len(ew))]
         elif ew:
-            dur = (b - a) / len(ew)
-            words = [(w, a + j * dur, a + (j + 1) * dur) for j, w in enumerate(ew)]
+            dur = (nb - na) / len(ew)
+            words = [(w, na + j * dur, na + (j + 1) * dur) for j, w in enumerate(ew)]
         else:
             words = []
-        new_segs.append((a, b, et, words))
+        new_segs.append((na, nb, et, words))
 
     srt_text = segments_to_srt([(a, b, t) for a, b, t, _w in new_segs])
     d1, d2, d3 = st.columns(3)
@@ -572,8 +662,9 @@ else:
                                   bold=st.session_state.get("cap_bold", True),
                                   italic=st.session_state.get("cap_italic", False),
                                   karaoke=karaoke_on,
-                                  karaoke_color=(STYLES.get(st.session_state.style) or {}).get("karaoke", "&H0020B0FF"),
-                                  font_name=st.session_state.get("custom_font", "Noto Sans"))
+                                  karaoke_color=_hex_to_ass(st.session_state.get("karaoke_color", "#FFB020")),
+                                  font_name=st.session_state.get("custom_font", "Noto Sans"),
+                                  margin=int(st.session_state.get("cap_margin", 45)))
                     with open(out_path, "rb") as f:
                         st.session_state.burned = f.read()
                 except Exception as e:
