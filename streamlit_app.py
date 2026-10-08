@@ -46,38 +46,38 @@ FONT_FILES = {
 # transform: 'upper'/'lower'/None applied to caption text for the style.
 STYLES = {
     "Default": None,
-    "Ali Abdal": {"transform": None, "style": (
+    "Ali Abdal": {"transform": None, "karaoke": "&H00303BFF", "style": (
         "FontName=Noto Sans,FontSize=22,PrimaryColour=&H00000000,"
         "BackColour=&H00FFFFFF,OutlineColour=&H00FFFFFF,"
         "BorderStyle=3,Outline=1,Shadow=0,"
         "Alignment=2,MarginV=45,Bold=1")},
-    "Alex Hormozi": {"transform": "upper", "style": (
+    "Alex Hormozi": {"transform": "upper", "karaoke": "&H0039FF39", "style": (
         "FontName=Noto Sans,FontSize=28,PrimaryColour=&H00FFFFFF,"
         "OutlineColour=&H0039FF39,BorderStyle=1,Outline=3,Shadow=0,"
         "Alignment=4,MarginV=30,Bold=1")},
-    "Iman Gadzhi": {"transform": "upper", "style": (
+    "Iman Gadzhi": {"transform": "upper", "karaoke": "&H0020B0FF", "style": (
         "FontName=Noto Sans,FontSize=28,PrimaryColour=&H00FFFFFF,"
         "OutlineColour=&HFF000000,BorderStyle=1,Outline=2,Shadow=1,"
         "Alignment=5,Bold=1")},
-    "Bubble": {"transform": None, "style": (
+    "Bubble": {"transform": None, "karaoke": "&H0020B0FF", "style": (
         "FontName=Noto Serif,FontSize=24,PrimaryColour=&H00FFFFFF,"
         "BackColour=&H00000000,OutlineColour=&H00000000,"
         "BorderStyle=3,Outline=1,Shadow=0,"
         "Alignment=5,Bold=0")},
-    "Raj Shamani": {"transform": "upper", "style": (
+    "Raj Shamani": {"transform": "upper", "karaoke": "&H0000FF00", "style": (
         "FontName=Noto Sans,FontSize=28,PrimaryColour=&H0000FF00,"
         "OutlineColour=&HFF000000,BorderStyle=1,Outline=2,Shadow=0,"
         "Alignment=5,Bold=1")},
-    "Varun Mayya": {"transform": "lower", "style": (
+    "Varun Mayya": {"transform": "lower", "karaoke": "&H00EB6325", "style": (
         "FontName=Noto Sans,FontSize=26,PrimaryColour=&H00FFFFFF,"
         "BackColour=&H00EB6325,OutlineColour=&H00EB6325,"
         "BorderStyle=3,Outline=1,Shadow=0,"
         "Alignment=5,Bold=1")},
-    "Devin Jatho": {"transform": "upper", "style": (
+    "Devin Jatho": {"transform": "upper", "karaoke": "&H00EB6325", "style": (
         "FontName=Noto Sans,FontSize=28,PrimaryColour=&H00FFFFFF,"
         "OutlineColour=&H00EB6325,BorderStyle=1,Outline=3,Shadow=0,"
         "Alignment=5,Bold=1")},
-    "Mr Beast": {"transform": "upper", "style": (
+    "Mr Beast": {"transform": "upper", "karaoke": "&H0000D7FF", "style": (
         "FontName=Noto Sans,FontSize=30,PrimaryColour=&H00FFFFFF,"
         "OutlineColour=&H0000D7FF,BorderStyle=1,Outline=3,Shadow=1,"
         "Alignment=5,Bold=1")},
@@ -196,15 +196,80 @@ def segments_to_srt(segments):
     return "\n".join(out)
 
 
+def ass_timestamp(s: float) -> str:
+    h = int(s // 3600)
+    m = int((s % 3600) // 60)
+    sec = s % 60
+    return f"{h}:{m:02d}:{sec:05.2f}"
+
+
+def segments_to_ass(seg_words, playres=(1280, 720)):
+    """seg_words: list of (start, end, [(word, wstart, wend), ...]) -> ASS with karaoke."""
+    pw, ph = playres
+    L = ["[Script Info]", "ScriptType: v4.00+",
+         f"PlayResX: {pw}", f"PlayResY: {ph}", "",
+         "[V4+ Styles]",
+         "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, "
+         "BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, "
+         "BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
+         "Style: Default,Noto Sans,24,&H00FFFFFF,&H0020B0FF,&H90000000,&H90000000,"
+         "-1,0,0,0,100,100,0,0,1,2,0,2,10,10,45,1",
+         "", "[Events]",
+         "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text"]
+    for a, b, words in seg_words:
+        parts = []
+        for w, ws, we in words:
+            k = max(1, int(round((we - ws) * 100)))
+            w = w.replace("{", "").replace("}", "")
+            parts.append(f"{{\\k{k}}}{w}")
+        L.append(f"Dialogue: 0,{ass_timestamp(a)},{ass_timestamp(b)},"
+                 f"Default,,0,0,0,,{' '.join(parts)}")
+    return "\n".join(L)
+
+
+def _ttf_family_name(path):
+    """Read font family name (nameID 1) from a TTF/OTF without extra dependencies."""
+    try:
+        import struct
+        with open(path, "rb") as f:
+            data = f.read()
+        num = struct.unpack(">H", data[4:6])[0]
+        for i in range(num):
+            off = 12 + i * 16
+            if data[off:off + 4] == b"name":
+                noff = struct.unpack(">I", data[off + 8:off + 12])[0]
+                count = struct.unpack(">H", data[noff + 2:noff + 4])[0]
+                sroff = noff + struct.unpack(">H", data[noff + 4:noff + 6])[0]
+                best = None
+                for j in range(count):
+                    r = noff + 6 + j * 12
+                    pid, eid, lid, nid, ln, roff = struct.unpack(">HHHHHH", data[r:r + 12])
+                    if nid == 1:
+                        raw = data[sroff + roff:sroff + roff + ln]
+                        try:
+                            txt = raw.decode("utf-16-be").strip()
+                        except Exception:
+                            txt = raw.decode("latin-1", "ignore").strip()
+                        if pid == 3 and lid == 0x409:
+                            return txt
+                        if best is None and txt:
+                            best = txt
+                return best
+    except Exception:
+        return None
+    return None
+
+
 def _hex_to_ass(h):
     """#RRGGBB -> libass &HAABBGGRR."""
     h = h.lstrip("#")
     return f"&H00{h[4:6]}{h[2:4]}{h[0:2]}".upper()
 
 
-def burn_captions(video_path, srt_path, out_path, style_name="Default",
+def burn_captions(video_path, sub_path, out_path, style_name="Default",
                   position="Bottom", size="Normal", align="Center",
-                  font_color="#FFFFFF", bold=True, italic=False):
+                  font_color="#FFFFFF", bold=True, italic=False,
+                  karaoke=False, karaoke_color="&H0020B0FF", font_name="Noto Sans"):
     preset = STYLES.get(style_name)
     if preset:
         style = preset["style"]
@@ -221,12 +286,20 @@ def burn_captions(video_path, srt_path, out_path, style_name="Default",
     anum = {"Bottom": 1, "Middle": 4, "Top": 7}[position] + \
            {"Left": 0, "Center": 1, "Right": 2}[align]
     style = re.sub(r"Alignment=\d+", f"Alignment={anum}", style)
-    style = re.sub(r"PrimaryColour=&H[0-9A-Fa-f]+",
-                   f"PrimaryColour={_hex_to_ass(font_color)}", style)
+    if karaoke:
+        # NOTE: is libass build me karaoke ulta render hota hai (frame tests se verified):
+        # bola hua lafz = PrimaryColour, na bola hua = SecondaryColour
+        style = re.sub(r"PrimaryColour=&H[0-9A-Fa-f]+",
+                       f"PrimaryColour={karaoke_color}", style)
+        style += f",SecondaryColour={_hex_to_ass(font_color)}"
+    else:
+        style = re.sub(r"PrimaryColour=&H[0-9A-Fa-f]+",
+                       f"PrimaryColour={_hex_to_ass(font_color)}", style)
     style = re.sub(r"Bold=\d+", f"Bold={1 if bold else 0}", style)
     style += f",Italic={1 if italic else 0}"
-    # escape for libass subtitles filter
-    srt_esc = srt_path.replace("\\", "/").replace(":", "\\:").replace("'", "\\'")
+    style = re.sub(r"FontName=[^,]+", f"FontName={font_name}", style)
+    # escape for libass subtitles filter (.srt or .ass)
+    srt_esc = sub_path.replace("\\", "/").replace(":", "\\:").replace("'", "\\'")
     vf = f"subtitles='{srt_esc}':force_style='{style}'"
     cmd = ["ffmpeg", "-y", "-i", video_path, "-vf", vf, "-c:a", "copy", out_path]
     r = subprocess.run(cmd, capture_output=True, text=True, timeout=1200)
@@ -238,7 +311,8 @@ def burn_captions(video_path, srt_path, out_path, style_name="Default",
 # Session state
 # ----------------------------------------------------------------------------
 for _k, _v in {"style": "Default", "segs": None, "video_bytes": None,
-               "video_ext": ".mp4", "gen_id": 0, "burned": None}.items():
+               "video_ext": ".mp4", "gen_id": 0, "burned": None,
+               "custom_font": "Noto Sans"}.items():
     if _k not in st.session_state:
         st.session_state[_k] = _v
 
@@ -309,6 +383,26 @@ if not st.session_state.segs:
         with cc5:
             st.checkbox("Bold", value=True, key="cap_bold")
             st.checkbox("Italic", value=False, key="cap_italic")
+        st.checkbox("🔥 Karaoke word-highlight (bolta lafz chamkega)", value=True, key="karaoke")
+        st.selectbox("📝 Words per caption", ["Auto", "3", "4", "5", "6", "8"], index=0, key="wpc",
+                     help="Auto = AI ke segments; ya chhote punchy captions ke liye lafzon ki tadaad chuno")
+        st.file_uploader("🔤 Custom font (TTF/OTF) — optional", type=["ttf", "otf"], key="font_up")
+        _fu = st.session_state.get("font_up")
+        if _fu is not None:
+            _fd = os.path.join(os.path.expanduser("~"), ".fonts")
+            os.makedirs(_fd, exist_ok=True)
+            _fname = "".join(c for c in _fu.name if c.isalnum() or c in "._-") or "custom.ttf"
+            _fp = os.path.join(_fd, _fname)
+            if not os.path.exists(_fp):
+                with open(_fp, "wb") as _f:
+                    _f.write(_fu.getvalue())
+                subprocess.run(["fc-cache", "-f", _fd], capture_output=True, timeout=60)
+            _fam = _ttf_family_name(_fp)
+            if _fam:
+                st.session_state["custom_font"] = _fam
+                st.caption(f"✅ Font lag gaya: {_fam}")
+            else:
+                st.caption("⚠️ Font ka naam parha nahi ja saka — Noto Sans use hoga.")
 
     st.subheader("3️⃣ Generate karo")
     if uploaded and st.button("✨ Captions Generate Karo", type="primary", use_container_width=True):
@@ -340,21 +434,44 @@ if not st.session_state.segs:
                 with wave.open(wav_path, "rb") as wf:
                     raw = wf.readframes(wf.getnframes())
                     audio = np.frombuffer(raw, dtype=np.int16).astype(np.float32) / 32768.0
-                segments, info = model.transcribe(audio, **kwargs)
-                segs = []
-                for s in segments:
-                    txt = s.text.strip()
-                    if not txt:
-                        continue
-                    if lang == "hinglish":
-                        txt = to_hinglish(txt)
-                    # style ke hisaab se case transform (Hormozi/Gadzhi = UPPER, Mayya = lower)
+                segments, info = model.transcribe(audio, **kwargs, word_timestamps=True)
+                segments = list(segments)
+
+                def _tr_txt(t):
                     _tr = (STYLES.get(st.session_state.style) or {}).get("transform")
                     if _tr == "upper":
-                        txt = txt.upper()
-                    elif _tr == "lower":
-                        txt = txt.lower()
-                    segs.append((s.start, s.end, txt))
+                        return t.upper()
+                    if _tr == "lower":
+                        return t.lower()
+                    return t
+
+                def _hl(t):
+                    return to_hinglish(t) if lang == "hinglish" else t
+
+                wpc = st.session_state.get("wpc", "Auto")
+                segs = []  # (start, end, text, [(word, wstart, wend), ...])
+                if wpc == "Auto":
+                    for s in segments:
+                        txt = s.text.strip()
+                        if not txt:
+                            continue
+                        words = [(_hl(w.word.strip()), w.start, w.end)
+                                 for w in (s.words or []) if w.word.strip()]
+                        segs.append((s.start, s.end, _tr_txt(_hl(txt)),
+                                     [(_tr_txt(x), a, b) for x, a, b in words]))
+                else:
+                    n = int(wpc)
+                    all_words = []
+                    for s in segments:
+                        for w in (s.words or []):
+                            t = w.word.strip()
+                            if t:
+                                all_words.append((_hl(t), w.start, w.end))
+                    for i in range(0, len(all_words), n):
+                        ch = all_words[i:i + n]
+                        words = [(_tr_txt(x), a, b) for x, a, b in ch]
+                        segs.append((ch[0][1], ch[-1][2],
+                                     " ".join(x for x, _, _ in words), words))
 
             if not segs:
                 st.error("Koi speech detect nahi hui. Koi aur video try karo.")
@@ -379,7 +496,8 @@ else:
                f"{st.session_state.get('cap_size', 'Normal')}") 
 
     df = pd.DataFrame(
-        [{"Start": srt_timestamp(a), "End": srt_timestamp(b), "Text": t} for a, b, t in segs]
+        [{"Start": srt_timestamp(a), "End": srt_timestamp(b), "Text": t}
+         for a, b, t, _w in segs]
     )
     edited = st.data_editor(
         df, hide_index=True, use_container_width=True, num_rows="fixed",
@@ -390,10 +508,21 @@ else:
         },
         key=f"cap_editor_{st.session_state.gen_id}",
     )
-    new_segs = [(a, b, str(t)) for (a, b, _), t in
-                zip(segs, edited["Text"].tolist())]
+    edited_texts = edited["Text"].tolist()
+    new_segs = []  # (start, end, text, words)
+    for i, (a, b, _t, orig_words) in enumerate(segs):
+        et = str(edited_texts[i]) if i < len(edited_texts) else ""
+        ew = et.split()
+        if ew and len(ew) == len(orig_words):
+            words = [(ew[j], orig_words[j][1], orig_words[j][2]) for j in range(len(ew))]
+        elif ew:
+            dur = (b - a) / len(ew)
+            words = [(w, a + j * dur, a + (j + 1) * dur) for j, w in enumerate(ew)]
+        else:
+            words = []
+        new_segs.append((a, b, et, words))
 
-    srt_text = segments_to_srt(new_segs)
+    srt_text = segments_to_srt([(a, b, t) for a, b, t, _w in new_segs])
     d1, d2, d3 = st.columns(3)
     with d1:
         st.download_button("⬇️ SRT download karo", srt_text,
@@ -407,25 +536,44 @@ else:
                 st.session_state[_k] = None
             st.rerun()
 
+    karaoke_on = st.session_state.get("karaoke", True)
+
     if do_burn:
         with tempfile.TemporaryDirectory() as tmp:
             video_path = os.path.join(tmp, "input" + st.session_state.video_ext)
             with open(video_path, "wb") as f:
                 f.write(st.session_state.video_bytes)
-            srt_path = os.path.join(tmp, "captions.srt")
-            with open(srt_path, "w", encoding="utf-8") as f:
-                f.write(srt_text)
+            if karaoke_on:
+                sub_path = os.path.join(tmp, "captions.ass")
+                _pr = subprocess.run(
+                    ["ffprobe", "-v", "error", "-select_streams", "v:0",
+                     "-show_entries", "stream=width,height", "-of", "csv=p=0", video_path],
+                    capture_output=True, text=True, timeout=30)
+                try:
+                    _pw, _ph = [int(x) for x in _pr.stdout.strip().split(",")]
+                except Exception:
+                    _pw, _ph = 1280, 720
+                with open(sub_path, "w", encoding="utf-8") as f:
+                    f.write(segments_to_ass([(a, b, w) for a, b, _t, w in new_segs],
+                                            playres=(_pw, _ph)))
+            else:
+                sub_path = os.path.join(tmp, "captions.srt")
+                with open(sub_path, "w", encoding="utf-8") as f:
+                    f.write(srt_text)
             out_path = os.path.join(tmp, "captioned.mp4")
             with st.spinner("🎞️ Video me captions burn ho rahe hain..."):
                 try:
-                    burn_captions(video_path, srt_path, out_path,
+                    burn_captions(video_path, sub_path, out_path,
                                   style_name=st.session_state.style,
                                   position=st.session_state.get("cap_position", "Bottom"),
                                   size=st.session_state.get("cap_size", "Normal"),
                                   align=st.session_state.get("cap_align", "Center"),
                                   font_color=st.session_state.get("cap_color", "#FFFFFF"),
                                   bold=st.session_state.get("cap_bold", True),
-                                  italic=st.session_state.get("cap_italic", False))
+                                  italic=st.session_state.get("cap_italic", False),
+                                  karaoke=karaoke_on,
+                                  karaoke_color=(STYLES.get(st.session_state.style) or {}).get("karaoke", "&H0020B0FF"),
+                                  font_name=st.session_state.get("custom_font", "Noto Sans"))
                     with open(out_path, "rb") as f:
                         st.session_state.burned = f.read()
                 except Exception as e:
