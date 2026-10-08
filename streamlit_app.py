@@ -421,7 +421,9 @@ if not st.session_state.segs:
     with c2:
         model_choice = st.selectbox("🧠 Model", ["base (fast)", "small (best)"], index=0)
     if LANGS[lang_label] == "hinglish":
-        st.info("💡 Hinglish ke liye **small** model auto-use hoga (Urdu/Hindi dono ko Roman me laata hai, thoda slow).")
+        st.info("💡 Hinglish ke liye **small** model auto-use hoga (Urdu/Hindi audio ko Roman me laata hai, thoda slow).")
+    if LANGS[lang_label] in ("hinglish", "hindi", "urdu"):
+        st.caption("ℹ️ Ye mode Hindi/Urdu **bolne** wali audio ke liye hai — English audio ke liye **English** select karo (English ko Hinglish me translate nahi karta).")
 
     st.subheader("2️⃣ Caption style chuno")
     st.caption(f"Selected: **{st.session_state.style}** — neeche kisi bhi template par click karo")
@@ -554,6 +556,15 @@ if not st.session_state.segs:
                             if _em:
                                 words.append((_em, ch[-1][2], ch[-1][2]))
                         segs.append((ch[0][1], ch[-1][2], txt, words))
+
+                # Smart check: desi language select thi lekin Whisper ne koi
+                # Devanagari/Urdu-script diya hi nahi -> audio English thi
+                if lang in ("hinglish", "hindi", "urdu") and segs:
+                    _raw = " ".join(s.text for s in segments)
+                    _native = any("\u0900" <= c <= "\u097F" or "\u0600" <= c <= "\u06FF"
+                                  for c in _raw)
+                    if not _native:
+                        st.warning("⚠️ Audio **English** lag rahi hai! Hinglish/Hindi/Urdu mode sirf Hindi/Urdu **bolne** wali audio ko Roman me badalta hai — English audio ko Hinglish me translate nahi karta. Is video ke liye **English** select karo.")
 
             if not segs:
                 st.error("Koi speech detect nahi hui. Koi aur video try karo.")
