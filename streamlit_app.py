@@ -1,4 +1,5 @@
 import os
+import re
 import subprocess
 import tempfile
 import urllib.request
@@ -195,7 +196,15 @@ def segments_to_srt(segments):
     return "\n".join(out)
 
 
-def burn_captions(video_path, srt_path, out_path, style_name="Default"):
+def _hex_to_ass(h):
+    """#RRGGBB -> libass &HAABBGGRR."""
+    h = h.lstrip("#")
+    return f"&H00{h[4:6]}{h[2:4]}{h[0:2]}".upper()
+
+
+def burn_captions(video_path, srt_path, out_path, style_name="Default",
+                  position="Bottom", size="Normal", align="Center",
+                  font_color="#FFFFFF", bold=True, italic=False):
     preset = STYLES.get(style_name)
     if preset:
         style = preset["style"]
@@ -206,6 +215,16 @@ def burn_captions(video_path, srt_path, out_path, style_name="Default"):
             "BorderStyle=1,Outline=2,Shadow=0,"
             "Alignment=2,MarginV=45,Bold=1"
         )
+    # --- Kalakar-style Text tab overrides (apply on top of any template) ---
+    size_px = {"Small": 18, "Normal": 24, "Large": 32}[size]
+    style = re.sub(r"FontSize=\d+", f"FontSize={size_px}", style)
+    anum = {"Bottom": 1, "Middle": 4, "Top": 7}[position] + \
+           {"Left": 0, "Center": 1, "Right": 2}[align]
+    style = re.sub(r"Alignment=\d+", f"Alignment={anum}", style)
+    style = re.sub(r"PrimaryColour=&H[0-9A-Fa-f]+",
+                   f"PrimaryColour={_hex_to_ass(font_color)}", style)
+    style = re.sub(r"Bold=\d+", f"Bold={1 if bold else 0}", style)
+    style += f",Italic={1 if italic else 0}"
     # escape for libass subtitles filter
     srt_esc = srt_path.replace("\\", "/").replace(":", "\\:").replace("'", "\\'")
     vf = f"subtitles='{srt_esc}':force_style='{style}'"
@@ -276,6 +295,21 @@ if not st.session_state.segs:
                     st.session_state.style = name
                     st.rerun()
 
+    with st.expander("⚙️ Caption customize karo — position, size, color (optional)", expanded=False):
+        cc1, cc2, cc3 = st.columns(3)
+        with cc1:
+            st.selectbox("📍 Position", ["Bottom", "Middle", "Top"], index=0, key="cap_position")
+        with cc2:
+            st.selectbox("🔠 Size", ["Small", "Normal", "Large"], index=1, key="cap_size")
+        with cc3:
+            st.selectbox("↔️ Alignment", ["Left", "Center", "Right"], index=1, key="cap_align")
+        cc4, cc5 = st.columns(2)
+        with cc4:
+            st.color_picker("🎨 Font color", "#FFFFFF", key="cap_color")
+        with cc5:
+            st.checkbox("Bold", value=True, key="cap_bold")
+            st.checkbox("Italic", value=False, key="cap_italic")
+
     st.subheader("3️⃣ Generate karo")
     if uploaded and st.button("✨ Captions Generate Karo", type="primary", use_container_width=True):
         lang = LANGS[lang_label]
@@ -340,7 +374,9 @@ if not st.session_state.segs:
 else:
     segs = st.session_state.segs
     st.success(f"✅ {len(segs)} caption segments tayyar! Neeche text edit kar sakte ho.")
-    st.caption(f"Style: **{st.session_state.style}**")
+    st.caption(f"Style: **{st.session_state.style}** • "
+               f"{st.session_state.get('cap_position', 'Bottom')} • "
+               f"{st.session_state.get('cap_size', 'Normal')}") 
 
     df = pd.DataFrame(
         [{"Start": srt_timestamp(a), "End": srt_timestamp(b), "Text": t} for a, b, t in segs]
@@ -383,7 +419,13 @@ else:
             with st.spinner("🎞️ Video me captions burn ho rahe hain..."):
                 try:
                     burn_captions(video_path, srt_path, out_path,
-                                  style_name=st.session_state.style)
+                                  style_name=st.session_state.style,
+                                  position=st.session_state.get("cap_position", "Bottom"),
+                                  size=st.session_state.get("cap_size", "Normal"),
+                                  align=st.session_state.get("cap_align", "Center"),
+                                  font_color=st.session_state.get("cap_color", "#FFFFFF"),
+                                  bold=st.session_state.get("cap_bold", True),
+                                  italic=st.session_state.get("cap_italic", False))
                     with open(out_path, "rb") as f:
                         st.session_state.burned = f.read()
                 except Exception as e:
