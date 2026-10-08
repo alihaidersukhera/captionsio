@@ -507,6 +507,10 @@ if not st.session_state.segs:
         lang_label = st.selectbox("🌍 Caption language", list(LANGS.keys()), index=0)
     with c2:
         model_choice = st.selectbox("🧠 Model", ["base (fast)", "small (best)"], index=0)
+    vad_label = st.selectbox("🎙️ Speech detection",
+                             ["Balanced (VAD on)", "Lenient (VAD off — koi speech miss na ho)"],
+                             index=0,
+                             help="Agar captions miss ho rahe hon (kam segments aayen) to Lenient select karke dobara Generate dabao.")
     if LANGS[lang_label] == "hinglish":
         st.info("💡 Hinglish ke liye **small** model auto-use hoga (Urdu/Hindi audio ko Roman me laata hai, thoda slow).")
     if LANGS[lang_label] == "en2hinglish":
@@ -590,7 +594,11 @@ if not st.session_state.segs:
             # 2. transcribe
             with st.spinner(f"🧠 AI sun raha hai ({use_model} model)..."):
                 model = get_model(use_model)
-                kwargs = dict(language=WHISPER_LANG[lang], beam_size=5, vad_filter=True)
+                _vad_on = not vad_label.startswith("Lenient")
+                kwargs = dict(language=WHISPER_LANG[lang], beam_size=5, vad_filter=_vad_on)
+                if _vad_on:
+                    kwargs["vad_parameters"] = dict(threshold=0.35, min_speech_duration_ms=250,
+                                                    min_silence_duration_ms=1000, speech_pad_ms=400)
                 if lang == "hinglish":
                     kwargs["initial_prompt"] = "Yeh ek kahani ka Hinglish transcript hai."
                 # Load the wav into a numpy array ourselves and pass the array:
