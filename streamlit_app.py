@@ -19,12 +19,14 @@ st.set_page_config(page_title="Captionsio — Free Auto-Captions", page_icon="�
 
 LANGS = {
     "Hinglish (Roman)": "hinglish",
+    "English → Hinglish (translate)": "en2hinglish",
     "Hindi (देवनागरी)": "hindi",
     "Urdu (اردو)": "urdu",
     "English": "english",
     "Auto-detect": "auto",
 }
-WHISPER_LANG = {"hinglish": "hi", "hindi": "hi", "urdu": "ur", "english": "en", "auto": None}
+WHISPER_LANG = {"hinglish": "hi", "en2hinglish": "en", "hindi": "hi",
+                "urdu": "ur", "english": "en", "auto": None}
 # Hinglish forces 'hi': the small model normalizes Urdu/Hindi speech -> Devanagari -> clean Roman
 
 # Defensive: some environments ship no_proxy with bracketed IPv6 entries ([::1])
@@ -154,6 +156,25 @@ def get_model(name: str):
             st.warning(f"Small model load nahi hua ({str(e)[:80]}), base use ho raha hai.")
             return load_model("base")
         raise
+
+
+def translate_en_to_hi(text):
+    """English -> Hindi (Devanagari) via MyMemory free API. Quota/failure par RuntimeError."""
+    import urllib.request
+    import urllib.parse
+    import json
+    q = urllib.parse.urlencode({"q": text, "langpair": "en|hi"})
+    req = urllib.request.Request("https://api.mymemory.translated.net/get?" + q,
+                                 headers={"User-Agent": "Mozilla/5.0"})
+    try:
+        with urllib.request.urlopen(req, timeout=30) as r:
+            d = json.load(r)
+    except Exception as e:
+        raise RuntimeError(f"Translation service se rabta nahi ho saka ({str(e)[:60]}). Internet check karke dobara try karo.")
+    out = ((d.get("responseData") or {}).get("translatedText") or "").strip()
+    if d.get("responseStatus") != 200 or not out or "MYMEMORY WARNING" in out:
+        raise RuntimeError("Translation quota khatam ya service busy hai — thodi der baad dobara try karo, ya English mode use karo.")
+    return out
 
 
 def to_hinglish(text: str) -> str:
@@ -422,6 +443,8 @@ if not st.session_state.segs:
         model_choice = st.selectbox("🧠 Model", ["base (fast)", "small (best)"], index=0)
     if LANGS[lang_label] == "hinglish":
         st.info("💡 Hinglish ke liye **small** model auto-use hoga (Urdu/Hindi audio ko Roman me laata hai, thoda slow).")
+    if LANGS[lang_label] == "en2hinglish":
+        st.info("💡 English audio ko **translate** karke Roman (Hinglish) captions banayega — jaise 'we have done the demo' → 'hum ne demo bana diya hai'. Free online translation hai (rozana limit ho sakti hai).")
     if LANGS[lang_label] in ("hinglish", "hindi", "urdu"):
         st.caption("ℹ️ Ye mode Hindi/Urdu **bolne** wali audio ke liye hai — English audio ke liye **English** select karo (English ko Hinglish me translate nahi karta).")
 
@@ -512,6 +535,38 @@ if not st.session_state.segs:
                     audio = np.frombuffer(raw, dtype=np.int16).astype(np.float32) / 32768.0
                 segments, info = model.transcribe(audio, **kwargs, word_timestamps=True)
                 segments = list(segments)
+
+                if lang == "en2hinglish":
+                    # English audio -> Hindi (Devanagari, free API) -> Roman = Hinglish captions
+                    import time
+                    from types import SimpleNamespace
+                    _tsegments = []
+                    _prog = st.progress(0, text="🌐 English → Hinglish translate ho raha hai...")
+                    try:
+                        _n = len(segments)
+                        for _i, _s in enumerate(segments):
+                            _raw = _s.text.strip()
+                            if _raw:
+                                _hi = translate_en_to_hi(_raw)
+                                time.sleep(0.3)
+                                _roman = to_hinglish(_hi).replace("।", "").replace("|", "").strip()
+                                _ws = _roman.split()
+                                if _ws and (_s.end - _s.start) > 0:
+                                    _dur = (_s.end - _s.start) / len(_ws)
+                                    _words = [SimpleNamespace(word=_w, start=_s.start + _j * _dur,
+                                                              end=_s.start + (_j + 1) * _dur)
+                                              for _j, _w in enumerate(_ws)]
+                                else:
+                                    _words = []
+                                _tsegments.append(SimpleNamespace(text=_roman, start=_s.start,
+                                                                  end=_s.end, words=_words))
+                            _prog.progress((_i + 1) / max(1, _n))
+                    except RuntimeError as e:
+                        _prog.empty()
+                        st.error(f"❌ {e}")
+                        st.stop()
+                    _prog.empty()
+                    segments = _tsegments
 
                 def _tr_txt(t):
                     _tr = (STYLES.get(st.session_state.style) or {}).get("transform")
